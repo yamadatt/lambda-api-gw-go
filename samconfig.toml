@@ -1,0 +1,9 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "sam-app"
+resolve_s3 = true
+s3_prefix = "sam-app"
+region = "ap-northeast-1"
+profile = "koji"
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["StockFunction=828973891538.dkr.ecr.ap-northeast-1.amazonaws.com/samapp7427b055/stockfunction2c360e0brepo"]

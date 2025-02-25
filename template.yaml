@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+
+    Tracing: Active
+    # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
+Resources:
+  StockFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      Architectures:
+      - x86_64
+      Environment:
+        Variables:
+          DB_HOST: 192.168.1.49
+          DB_NAME: your_db_name
+          MYSQL_USER: your_db_user
+          MYSQL_PASSWORD: your_db_password
+      Events:
+        StockApiPost:
+          Type: Api
+          Properties:
+            Path: /v1/stocks
+            Method: post
+        StockApiGet:
+          Type: Api
+          Properties:
+            Path: /v1/stocks/
+            Method: get
+        StockApiGetWithName:
+          Type: Api
+          Properties:
+            Path: /v1/stocks/{name}
+            Method: get
+    Metadata:
+      DockerTag: provided.al2023-v1
+      DockerContext: ./
+      Dockerfile: Dockerfile

@@ -1,0 +1,60 @@
+{
+    "resource": "/v1/stocks",
+    "path": "/v1/stocks",
+    "httpMethod": "POST",
+    "headers": {
+      "Accept": "*/*",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Host": "127.0.0.1:3000",
+      "Content-Type": "application/json",
+      "User-Agent": "curl/7.79.1",
+      "X-Amzn-Trace-Id": "Root=1-646344ba-51a9cb0a4ca84ca10453a193"
+    },
+    "multiValueHeaders": {
+      "Accept": [
+        "*/*"
+      ],
+      "Accept-Encoding": [
+        "gzip, deflate, br"
+      ],
+      "Content-Type": [
+        "application/json"
+      ]
+    },
+    "queryStringParameters": null,
+    "multiValueQueryStringParameters": null,
+    "pathParameters": null,
+    "stageVariables": null,
+    "requestContext": {
+      "resourceId": "w34q67",
+      "resourcePath": "/v1/stocks",
+      "httpMethod": "POST",
+      "extendedRequestId": "EXAMPLE=",
+      "requestTime": "16/May/2023:18:47:38 +0000",
+      "path": "/v1/stocks",
+      "accountId": "123456789012",
+      "protocol": "HTTP/1.1",
+      "stage": "test",
+      "domainPrefix": "EXAMPLE",
+      "requestTimeEpoch": 1684262858,
+      "requestId": "EXAMPLE",
+      "identity": {
+        "cognitoIdentityPoolId": null,
+        "accountId": null,
+        "cognitoIdentityId": null,
+        "caller": null,
+        "sourceIp": "127.0.0.1",
+        "principalOrgId": null,
+        "accessKey": null,
+        "cognitoAuthenticationType": null,
+        "cognitoAuthenticationProvider": null,
+        "userArn": null,
+        "userAgent": "curl/7.79.1",
+        "user": null
+      },
+      "domainName": "127.0.0.1:3000",
+      "apiId": "EXAMPLE"
+    },
+    "body": "{\"name\": \"testproduct\", \"amount\": 12345}",
+    "isBase64Encoded": false
+  }
