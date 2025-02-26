@@ -34,7 +34,6 @@ func getStocksHandler(db Storer) gin.HandlerFunc {
 
 			c.JSON(http.StatusOK, stocks)
 		}
-
 	}
 }
 
