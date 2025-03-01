@@ -1,0 +1,186 @@
+name: Go CI/CD
+
+on:
+  # すべてのブランチへのプッシュとプルリクエストで発火
+  push:
+    branches: [ '**' ]  # すべてのブランチ
+  pull_request:
+    branches: [ '**' ]  # すべてのブランチ
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    # MySQLサービスコンテナをセットアップ（テスト用）
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: stocks
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        go install github.com/swaggo/swag/cmd/swag@latest
+        go install github.com/axw/gocov/gocov@latest
+        go install github.com/AlekSi/gocov-xml@latest
+
+    - name: Generate Swagger docs
+      run: swag init
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test with coverage
+      run: |
+        go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+      env:
+        MYSQL_USER: test
+        MYSQL_PASSWORD: test
+        DB_HOST: localhost
+        MYSQL_DATABASE: stocks
+
+    - name: Convert coverage to Cobertura format
+      run: |
+        gocov convert coverage.txt | gocov-xml > coverage.xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.txt
+        flags: unittests
+        fail_ci_if_error: false
+        verbose: true
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: |
+          coverage.txt
+          coverage.xml
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+    - name: Generate coverage report HTML
+      run: |
+        go tool cover -html=coverage.txt -o coverage.html
+
+    - name: Upload HTML coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-html
+        path: coverage.html
+
+  coverage-report:
+    name: Generate Coverage Report
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download Coverage Report
+      uses: actions/download-artifact@v3
+      with:
+        name: coverage-report
+        
+    - name: Generate and Post Coverage Comment
+      uses: MishaKav/jest-coverage-comment@main
+      with:
+        coverage-summary-path: coverage.xml
+        title: 'Code Coverage Report'
+        badge-title: 'Coverage'
+        hide-comment: false
+        create-new-comment: false
+        hide-summary: false
+        
+    - name: Display Coverage Thresholds
+      run: |
+        echo "## Coverage Thresholds" >> $GITHUB_STEP_SUMMARY
+        echo "- Statements threshold: 80%" >> $GITHUB_STEP_SUMMARY
+        echo "- Functions threshold: 75%" >> $GITHUB_STEP_SUMMARY
+        echo "- Lines threshold: 80%" >> $GITHUB_STEP_SUMMARY
+        echo "- Branches threshold: 70%" >> $GITHUB_STEP_SUMMARY
+        
+        # カバレッジ結果を抽出して表示
+        echo "## Current Coverage" >> $GITHUB_STEP_SUMMARY
+        COVERAGE=$(grep -oP 'total:\s+\(statements\)\s+\K[0-9.]+' coverage.txt || echo "N/A")
+        echo "- Current coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+        
+        # PRの場合、カバレッジをPRにコメントする
+        if [ "${{ github.event_name }}" == "pull_request" ]; then
+          echo "Code Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run E2E tests
+      run: go test -v -tags=e2e ./...
+      
+  docker:
+    name: Build and Push Docker image
+    runs-on: ubuntu-latest
+    needs: [build, e2e-tests, coverage-report]
+    # mainブランチへのプッシュ時のみDockerイメージをビルドしてプッシュする
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        # GitHubのシークレットから認証情報を取得
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+    - name: Build and push
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/lambda-api-gw-go:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
