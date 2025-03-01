@@ -10,6 +10,24 @@ import (
 )
 
 func TestConnectDB(t *testing.T) {
+	// CI環境の場合はモックを使用
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		// モックテスト
+		originalSqlOpenFunc := sqlOpenFunc
+		defer func() { sqlOpenFunc = originalSqlOpenFunc }()
+
+		sqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
+			db, mock, _ := sqlmock.New()
+			mock.ExpectPing()
+			return db, nil
+		}
+
+		db, err := connectDB()
+		assert.NoError(t, err)
+		assert.NotNil(t, db)
+		return
+	}
+
 	// Original environment variables
 	originalUser := os.Getenv("MYSQL_USER")
 	originalPass := os.Getenv("MYSQL_PASSWORD")
