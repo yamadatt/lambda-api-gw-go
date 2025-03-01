@@ -1,0 +1,162 @@
+openapi: 3.0.0
+info:
+  title: Stock Management API
+  description: 在庫管理のための API
+  version: 1.0.0
+  contact:
+    name: API サポート
+    email: support@example.com
+
+servers:
+  - url: /v1
+    description: メインサーバー
+
+paths:
+  /stocks:
+    get:
+      summary: 全ての在庫を取得
+      description: データベースに登録されている全ての在庫情報を返します。
+      operationId: getAllStocks
+      responses:
+        '200':
+          description: 正常応答
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/StocksResponse'
+                  - $ref: '#/components/schemas/EmptyDataResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - stocks
+    
+    post:
+      summary: 在庫を登録または更新
+      description: 新しい在庫を登録、または既存の在庫を更新します。
+      operationId: createOrUpdateStock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockRequest'
+      responses:
+        '200':
+          description: 登録または更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stock'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - stocks
+
+  /stocks/{name}:
+    get:
+      summary: 指定した名前の在庫を取得
+      description: 指定された名前の在庫情報を返します。
+      operationId: getStockByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: 取得する在庫の名前
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 正常応答
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Stock'
+                  - $ref: '#/components/schemas/EmptyDataResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - stocks
+
+components:
+  schemas:
+    Stock:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 在庫の名前
+          example: "apple"
+        amount:
+          type: integer
+          description: 在庫の数量
+          default: 1
+          example: 10
+      required:
+        - name
+      
+    StockRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 在庫の名前
+          example: "banana"
+        amount:
+          type: integer
+          description: 在庫の数量
+          default: 1
+          example: 5
+      required:
+        - name
+
+    StocksResponse:
+      type: array
+      items:
+        $ref: '#/components/schemas/Stock'
+      description: 在庫のリスト
+      example:
+        - name: "apple"
+          amount: 10
+        - name: "banana"
+          amount: 5
+
+    EmptyDataResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "データが存在しません"
+      
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: エラーメッセージ
+          example: "データベース接続エラー"
+      required:
+        - error
+
+tags:
+  - name: stocks
+    description: 在庫操作 API
