@@ -35,7 +35,7 @@ jobs:
           --health-retries=3
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: aactions/checkout@v4
 
     - name: Set up Go
       uses: actions/setup-go@v5
