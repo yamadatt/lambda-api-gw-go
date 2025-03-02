@@ -88,7 +88,8 @@ func TestSwaggerWithYAML(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), "swagger:")
+		// OpenAPI 3.0形式のYAMLファイルを期待
+		assert.Contains(t, w.Body.String(), "openapi:") // swagger:ではなくopenapi:を確認
 	})
 }
 

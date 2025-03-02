@@ -11,14 +11,37 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title Stock Management API
+// @version 1.0
+// @description 在庫管理のための API
+// @contact.name API サポート
+// @contact.email support@example.com
+// @BasePath /v1
+
 func main() {
-	db, err := connectDB()
-	if err != nil {
-		log.Fatal("Failed to initialize database:", err)
+	// ルーターの設定
+	r := setupRouter()
+
+	// サーバー起動
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
 
+	log.Fatal(r.Run(":" + port))
+}
+
+func setupRouter() *gin.Engine {
 	r := gin.Default()
-	setupRoutes(r, db) // ルーティング設定を routes.go に移動
+
+	// DB接続
+	db, err := connectDB()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	// ルート設定
+	setupRoutes(r, db)
 
 	// ドキュメントを提供するエンドポイント
 	r.GET("/api-docs/swagger.yaml", func(c *gin.Context) {
@@ -47,8 +70,5 @@ func main() {
 		URL: serverURL + "/api-docs/swagger.yaml",
 	}, swaggerFiles.Handler))
 
-	// サーバーを起動し、エラーをチェック
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
+	return r
 }

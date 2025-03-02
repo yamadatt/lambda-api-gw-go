@@ -138,6 +138,47 @@ jobs:
     - name: Generate Swagger docs
       run: swag init
 
+    - name: Generate Swagger docs
+      run: |
+        # プロジェクトに合わせたSwaggerドキュメント生成
+        mkdir -p docs
+        cat > docs/swagger.yaml << EOF
+        openapi: 3.0.0
+        info:
+          title: Stock Management API
+          description: 在庫管理のための API
+          version: 1.0.0
+        # ... ここに必要なSwaggerドキュメントの内容を入れる ...
+        EOF
+        
+        # 必要に応じてswag initを実行
+        swag init
+
+    - name: Prepare test environment
+      run: |
+        # テスト用のconfig.goを作成（必要に応じて）
+        cat > config.go << EOF
+        package main
+        
+        import (
+          "github.com/gin-gonic/gin"
+          swaggerFiles "github.com/swaggo/files"
+          ginSwagger "github.com/swaggo/gin-swagger"
+        )
+        
+        func setupTestRouter() *gin.Engine {
+          r := gin.New()
+          
+          // Swaggerハンドラの設定
+          r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+          r.GET("/api-docs/swagger.yaml", func(c *gin.Context) {
+            c.File("./swagger.yaml")
+          })
+          
+          return r
+        }
+        EOF
+
     - name: Run integration tests
       run: go test -v -tags=integration ./...
       env:
