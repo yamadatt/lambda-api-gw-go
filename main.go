@@ -30,7 +30,7 @@ func main() {
 	// fmt.Println("host::::--------------", db) //debug
 	fmt.Println(host)
 	if host == "" {
-		host = "localhost" // デフォルト値
+		host = "192.168.1.78" // デフォルト値
 	}
 
 	port := os.Getenv("APP_PORT")
@@ -42,6 +42,7 @@ func main() {
 	serverURL := fmt.Sprintf("http://%s:%s", host, port)
 
 	// Swagger UIのエンドポイントを追加
+	// http://192.168.1.78:8080/api-docs/swagger.yaml にアクセスすると、Swagger UI が表示される
 	r.GET("/swagger/*any", ginSwagger.CustomWrapHandler(&ginSwagger.Config{
 		URL: serverURL + "/api-docs/swagger.yaml",
 	}, swaggerFiles.Handler))
