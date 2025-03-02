@@ -180,12 +180,20 @@ jobs:
         EOF
 
     - name: Run integration tests
-      run: go test -v -tags=integration ./...
+      run: |
+        # GINのデバッグモード有効化
+        export GIN_MODE=debug
+        # 詳細なテストログを出力
+        go test -v -tags=integration ./... 2>&1 | tee test.log
+        # テストログを確認
+        echo "Test log contents:"
+        cat test.log
       env:
         MYSQL_USER: test
         MYSQL_PASSWORD: test
         DB_HOST: localhost
         MYSQL_DATABASE: stocks
+        DEBUG: "true"
 
   swagger-tests:
     name: Swagger Tests

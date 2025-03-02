@@ -66,7 +66,7 @@ func TestSwaggerWithYAML(t *testing.T) {
 	// SwaggerハンドラをCustomWrapHandlerで設定
 	r.GET("/swagger/*any", ginSwagger.CustomWrapHandler(
 		&ginSwagger.Config{
-			URL: "/api-docs/swagger.yaml",
+			URL: "/api-docs/swagger.yaml", // YAML取得先を指定
 		},
 		swaggerFiles.Handler,
 	))
@@ -88,8 +88,7 @@ func TestSwaggerWithYAML(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		// OpenAPI 3.0形式のYAMLファイルを期待
-		assert.Contains(t, w.Body.String(), "openapi:") // swagger:ではなくopenapi:を確認
+		assert.Contains(t, w.Body.String(), "openapi:") // swagger: -> openapi:
 	})
 }
 
