@@ -66,7 +66,9 @@ func TestConnectDB(t *testing.T) {
 
 		// sqlOpenFunc をモック関数で置き換える
 		originalSqlOpenFunc := sqlOpenFunc
-		sqlOpenFunc = sqlOpenFunc
+		sqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
+			return db, nil
+		}
 		defer func() { sqlOpenFunc = originalSqlOpenFunc }()
 
 		storer, err := connectDB()
