@@ -188,14 +188,36 @@ jobs:
       run: |
         echo '{"host": "localhost", "port": 3306, "user": "test", "password": "test", "database": "stocks"}' > db_config.json
       
+    - name: Verify MySQL connection
+      run: |
+        echo "Checking MySQL connection..."
+        mysql -h127.0.0.1 -utest -ptest -e "SELECT 'MySQL connection successful!';"
+    
+    - name: Initialize database schema
+      run: |
+        echo "Initializing database schema..."
+        cat <<EOF > init.sql
+        USE stocks;
+        CREATE TABLE IF NOT EXISTS stocks (
+          name VARCHAR(255) PRIMARY KEY,
+          amount INT NOT NULL
+        );
+        INSERT INTO stocks (name, amount) VALUES ('apple', 10), ('banana', 5) 
+        ON DUPLICATE KEY UPDATE amount = VALUES(amount);
+        EOF
+        mysql -h127.0.0.1 -utest -ptest stocks < init.sql
+        echo "Schema initialized. Checking tables:"
+        mysql -h127.0.0.1 -utest -ptest -e "USE stocks; SHOW TABLES; SELECT * FROM stocks;"
+    
     - name: Run swagger tests
-      run: go test -v -tags=swagger ./...
+      run: go test -v -tags=swagger -timeout=30s ./...
       env:
         MYSQL_USER: test
         MYSQL_PASSWORD: test
         DB_HOST: localhost
         MYSQL_DATABASE: stocks
         DB_CONFIG_PATH: ./db_config.json
+        DEBUG: "true"  # デバッグ出力を有効化
 
   coverage-report:
     name: Generate Coverage Report
