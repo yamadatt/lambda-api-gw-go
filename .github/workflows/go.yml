@@ -108,33 +108,26 @@ jobs:
       with:
         name: coverage-report
         
-    - name: Generate and Post Coverage Comment
-      uses: MishaKav/jest-coverage-comment@main
-      with:
-        coverage-summary-path: coverage.xml
-        title: 'Code Coverage Report'
-        badge-title: 'Coverage'
-        hide-comment: false
-        create-new-comment: false
-        hide-summary: false
-        
-    - name: Display Coverage Thresholds
+    - name: Display Coverage
       run: |
-        echo "## Coverage Thresholds" >> $GITHUB_STEP_SUMMARY
-        echo "- Statements threshold: 80%" >> $GITHUB_STEP_SUMMARY
-        echo "- Functions threshold: 75%" >> $GITHUB_STEP_SUMMARY
-        echo "- Lines threshold: 80%" >> $GITHUB_STEP_SUMMARY
-        echo "- Branches threshold: 70%" >> $GITHUB_STEP_SUMMARY
-        
-        # カバレッジ結果を抽出して表示
-        echo "## Current Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
         COVERAGE=$(grep -oP 'total:\s+\(statements\)\s+\K[0-9.]+' coverage.txt || echo "N/A")
-        echo "- Current coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+        echo "- Statement coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+        
+        # ステータスバッジを生成（オプション）
+        echo "![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})" >> $GITHUB_STEP_SUMMARY
+        
+        # カバレッジレポートの詳細を表示
+        echo "## Detailed Coverage" >> $GITHUB_STEP_SUMMARY
+        cat coverage.txt >> $GITHUB_STEP_SUMMARY
         
         # PRの場合、カバレッジをPRにコメントする
         if [ "${{ github.event_name }}" == "pull_request" ]; then
-          echo "Code Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          echo "💯 **Code Coverage**: ${COVERAGE}%" > /tmp/pr-comment.txt
+          gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/pr-comment.txt
         fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   e2e-tests:
     name: End-to-End Tests
