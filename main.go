@@ -18,20 +18,43 @@ import (
 // @contact.email support@example.com
 // @BasePath /v1
 
-func main() {
-	// ルーターの設定
-	r := setupRouter()
-
-	// サーバー起動
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Fatal(r.Run(":" + port))
+// アプリケーション設定を一元管理する構造体
+type AppConfig struct {
+	Host string
+	Port string
+	// その他の設定...
 }
 
-func setupRouter() *gin.Engine {
+// 環境変数から設定を読み込む
+func loadConfig() AppConfig {
+	config := AppConfig{
+		Host: os.Getenv("APP_HOST"),
+		Port: os.Getenv("APP_PORT"),
+	}
+
+	// デフォルト値の設定
+	if config.Host == "" {
+		config.Host = "192.168.1.78"
+	}
+	if config.Port == "" {
+		config.Port = "8080"
+	}
+
+	return config
+}
+
+func main() {
+	// 設定を読み込む
+	config := loadConfig()
+
+	// ルーター設定（設定を渡す）
+	r := setupRouter(config)
+
+	// サーバー起動
+	log.Fatal(r.Run(":" + config.Port))
+}
+
+func setupRouter(config AppConfig) *gin.Engine {
 	r := gin.Default()
 
 	// DB接続
@@ -48,21 +71,8 @@ func setupRouter() *gin.Engine {
 		c.File("./swagger.yaml")
 	})
 
-	// 環境変数からホスト名とポートを取得するか、デフォルト値を使用
-	host := os.Getenv("APP_HOST")
-	// fmt.Println("host::::--------------", db) //debug
-	fmt.Println(host)
-	if host == "" {
-		host = "192.168.1.78" // デフォルト値
-	}
-
-	port := os.Getenv("APP_PORT")
-	// fmt.Println("port::::--------------", port) //debug
-	if port == "" {
-		port = "8080" // デフォルト値
-	}
-
-	serverURL := fmt.Sprintf("http://%s:%s", host, port)
+	// 設定値を使用
+	serverURL := fmt.Sprintf("http://%s:%s", config.Host, config.Port)
 
 	// Swagger UIのエンドポイントを追加
 	// http://192.168.1.78:8080/api-docs/swagger.yaml にアクセスすると、Swagger UI が表示される

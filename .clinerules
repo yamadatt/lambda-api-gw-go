@@ -1,0 +1,500 @@
+あなたはgolang開発のエキスパートです。クールなコーディングが得意です。
+
+# Go言語でのDDD実装コーディングルール
+
+## 5. テスト駆動開発（TDD）と実装手順
+
+### 5.1 ドメインモデルのテスト規約
+- 各集約のテストは独立した単体テストとして実装する
+- テスト名はビジネスシナリオを表現する
+- Given-When-Then または Arrange-Act-Assert パターンでテストを構造化する
+
+```go
+func TestOrder_PlaceOrder(t *testing.T) {
+    // Given
+    orderID, _ := NewOrderID("ORD-123456")
+    customerID, _ := NewCustomerID("CUST-789")
+    order := NewOrder(orderID, customerID)
+    
+    productID, _ := NewProductID("PROD-001")
+    order.AddItem(productID, 2, NewMoney(100))
+    
+    // When
+    err := order.PlaceOrder()
+    
+    // Then
+    assert.NoError(t, err)
+    assert.Equal(t, OrderStatusPlaced, order.Status())
+    assert.Len(t, order.Events(), 1)
+    
+    // イベントの検証
+    events := order.Events()
+    assert.IsType(t, OrderPlacedEvent{}, events[0])
+    event := events[0].(OrderPlacedEvent)
+    assert.Equal(t, orderID.String(), event.OrderID)
+    assert.Equal(t, customerID.String(), event.CustomerID)
+}
+
+func TestOrder_PlaceOrder_EmptyOrder(t *testing.T) {
+    // Given
+    orderID, _ := NewOrderID("ORD-123456")
+    customerID, _ := NewCustomerID("CUST-789")
+    order := NewOrder(orderID, customerID)
+    
+    // When
+    err := order.PlaceOrder()
+    
+    // Then
+    assert.Error(t, err)
+    assert.Equal(t, "order must have at least one item", err.Error())
+    assert.Len(t, order.Events(), 0)
+}
+```
+
+### 5.2 モックの実装規約
+- リポジトリやサービスのモックを作成し、ユニットテストで利用する
+- モックは実際のインターフェースを実装する構造体として定義する
+
+```go
+// モックリポジトリ
+type MockOrderRepository struct {
+    orders map[string]*Order
+}
+
+func NewMockOrderRepository() *MockOrderRepository {
+    return &MockOrderRepository{
+        orders: make(map[string]*Order),
+    }
+}
+
+func (m *MockOrderRepository) Save(ctx context.Context, order *Order) error {
+    m.orders[order.ID().String()] = order
+    return nil
+}
+
+func (m *MockOrderRepository) FindByID(ctx context.Context, id OrderID) (*Order, error) {
+    order, exists := m.orders[id.String()]
+    if !exists {
+        return nil, ErrOrderNotFound
+    }
+    return order, nil
+}
+```
+
+## 6. 集約設計と実装パターン
+
+### 6.1 集約ルートによるアクセス制御
+- 集約内のすべてのエンティティは集約ルートを通じてのみアクセス可能にする
+- 子エンティティはパッケージプライベートにするか、集約ルート内にネストする
+
+```go
+// 集約内の子エンティティはパッケージプライベート
+type orderItem struct {
+    productID ProductID
+    quantity  int
+    price     Money
+}
+
+// Order 集約ルート
+type Order struct {
+    id       OrderID
+    customer CustomerID
+    items    []orderItem
+    status   OrderStatus
+}
+
+// AddItem は集約ルートを通じた子エンティティ追加のみ許可
+func (o *Order) AddItem(productID ProductID, quantity int, price Money) error {
+    if quantity <= 0 {
+        return ErrInvalidQuantity
+    }
+    
+    o.items = append(o.items, orderItem{
+        productID: productID,
+        quantity:  quantity,
+        price:     price,
+    })
+    
+    return nil
+}
+
+// UpdateItemQuantity は集約ルートを通じた子エンティティ更新のみ許可
+func (o *Order) UpdateItemQuantity(productID ProductID, newQuantity int) error {
+    if newQuantity <= 0 {
+        return ErrInvalidQuantity
+    }
+    
+    for i, item := range o.items {
+        if item.productID.Equals(productID) {
+            o.items[i].quantity = newQuantity
+            return nil
+        }
+    }
+    
+    return ErrItemNotFound
+}
+```
+
+### 6.2 集約間参照
+- 集約間の参照はIDのみを使用する
+- 他の集約への操作は関連するリポジトリやサービスを通じて行う
+
+```go
+// Customer 集約はOrder集約を直接参照しない
+type Customer struct {
+    id    CustomerID
+    name  CustomerName
+    email EmailAddress
+    // 注文リストは保持しない
+}
+
+// Order集約は顧客IDだけを保持する
+type Order struct {
+    id        OrderID
+    customerID CustomerID // IDによる参照
+    // ...
+}
+
+// アプリケーションサービスで集約間の調整を行う
+func (s *CustomerService) GetCustomerWithOrders(ctx context.Context, customerID CustomerID) (CustomerWithOrdersDTO, error) {
+    customer, err := s.customerRepo.FindByID(ctx, customerID)
+    if err != nil {
+        return CustomerWithOrdersDTO{}, err
+    }
+    
+    orders, err := s.orderRepo.FindByCustomer(ctx, customerID)
+    if err != nil {
+        return CustomerWithOrdersDTO{}, err
+    }
+    
+    // DTOに変換して返す
+    return mapToCustomerWithOrdersDTO(customer, orders), nil
+}
+```
+
+## 7. リポジトリの実装規約
+
+### 7.1 リポジトリインターフェースとORM実装の分離
+- リポジトリインターフェースはドメイン層に定義
+- 実装の詳細はインフラストラクチャ層に隠蔽
+
+```go
+// ドメイン層のリポジトリインターフェース
+type OrderRepository interface {
+    Save(ctx context.Context, order *Order) error
+    FindByID(ctx context.Context, id OrderID) (*Order, error)
+}
+
+// インフラストラクチャ層のリポジトリ実装
+type SQLOrderRepository struct {
+    db *sql.DB
+}
+
+func NewSQLOrderRepository(db *sql.DB) *SQLOrderRepository {
+    return &SQLOrderRepository{db: db}
+}
+
+func (r *SQLOrderRepository) Save(ctx context.Context, order *Order) error {
+    // ORM固有の実装詳細
+    // ...
+}
+
+func (r *SQLOrderRepository) FindByID(ctx context.Context, id OrderID) (*Order, error) {
+    // ORM固有の実装詳細
+    // ...
+}
+```
+
+### 7.2 トランザクション管理パターン
+- 明示的なトランザクション境界を定義
+- Unit of Work パターンを使用して一貫性を確保
+
+```go
+// TransactionManager トランザクション管理インターフェース
+type TransactionManager interface {
+    Begin(ctx context.Context) (Transaction, error)
+}
+
+// Transaction トランザクションインターフェース
+type Transaction interface {
+    Commit() error
+    Rollback() error
+}
+
+// TransactionalOrderRepository トランザクション対応リポジトリ
+type TransactionalOrderRepository struct {
+    db *sql.DB
+}
+
+func (r *TransactionalOrderRepository) WithTransaction(tx Transaction) OrderRepository {
+    // トランザクションコンテキストを使用するリポジトリインスタンスを返す
+    sqlTx := tx.(*SQLTransaction).tx
+    return &SQLOrderRepository{db: nil, tx: sqlTx}
+}
+
+// アプリケーションサービスでのトランザクション利用
+func (s *OrderService) PlaceOrder(ctx context.Context, cmd PlaceOrderCommand) error {
+    tx, err := s.txManager.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+    
+    orderRepo := s.orderRepo.(TransactionalRepository).WithTransaction(tx)
+    
+    // リポジトリ操作...
+    
+    return tx.Commit()
+}
+```
+
+## 8. ファクトリパターンの実装
+
+### 8.1 エンティティ生成ファクトリ
+- 複雑な生成ロジックをファクトリに集約する
+- バリデーションと初期状態の設定を一箇所で行う
+
+```go
+// OrderFactory 注文エンティティのファクトリ
+type OrderFactory struct {
+    idGenerator IDGenerator
+}
+
+func NewOrderFactory(idGenerator IDGenerator) *OrderFactory {
+    return &OrderFactory{idGenerator: idGenerator}
+}
+
+// CreateOrder 新規注文作成
+func (f *OrderFactory) CreateOrder(customerID CustomerID) (*Order, error) {
+    orderID, err := f.idGenerator.NextOrderID()
+    if err != nil {
+        return nil, err
+    }
+    
+    return NewOrder(orderID, customerID), nil
+}
+
+// ReconstructOrder DBなどからの再構築
+func (f *OrderFactory) ReconstructOrder(
+    id OrderID,
+    customerID CustomerID,
+    items []OrderItemData,
+    status OrderStatus,
+) (*Order, error) {
+    order := &Order{
+        id:       id,
+        customer: customerID,
+        status:   status,
+        items:    make([]orderItem, 0, len(items)),
+    }
+    
+    for _, item := range items {
+        order.items = append(order.items, orderItem{
+            productID: item.ProductID,
+            quantity:  item.Quantity,
+            price:     item.Price,
+        })
+    }
+    
+    return order, nil
+}
+```
+
+### 8.2 ドメインサービスファクトリ
+- 複雑なドメインサービスの依存性を管理するファクトリ
+- テストでのモック切り替えを容易にする
+
+```go
+// PricingServiceFactory 価格計算サービスのファクトリ
+type PricingServiceFactory struct {
+    productRepo      ProductRepository
+    discountRepo     DiscountRepository
+    taxCalculator    TaxCalculator
+    pricingAlgorithm PricingAlgorithm
+}
+
+func NewPricingServiceFactory(
+    productRepo ProductRepository,
+    discountRepo DiscountRepository,
+    taxCalculator TaxCalculator,
+    pricingAlgorithm PricingAlgorithm,
+) *PricingServiceFactory {
+    return &PricingServiceFactory{
+        productRepo:      productRepo,
+        discountRepo:     discountRepo,
+        taxCalculator:    taxCalculator,
+        pricingAlgorithm: pricingAlgorithm,
+    }
+}
+
+func (f *PricingServiceFactory) CreatePricingService() PricingService {
+    return NewPricingService(
+        f.productRepo,
+        f.discountRepo,
+        f.taxCalculator,
+        f.pricingAlgorithm,
+    )
+}
+```
+
+## 9. ドメインサービスの実装規則
+
+### 9.1 ステートレスなドメインサービス
+- ドメインサービスは状態を持たず、関連エンティティに操作を行う
+- 複数エンティティ間の協調が必要な場合に使用
+
+```go
+// ドメインサービスインターフェース
+type InventoryService interface {
+    AllocateStock(productID ProductID, quantity int) error
+    ReleaseStock(productID ProductID, quantity int) error
+    IsInStock(productID ProductID, quantity int) (bool, error)
+}
+
+// ドメインサービス実装
+type inventoryService struct {
+    productRepo ProductRepository
+}
+
+func NewInventoryService(productRepo ProductRepository) InventoryService {
+    return &inventoryService{
+        productRepo: productRepo,
+    }
+}
+
+func (s *inventoryService) AllocateStock(productID ProductID, quantity int) error {
+    product, err := s.productRepo.FindByID(context.Background(), productID)
+    if err != nil {
+        return err
+    }
+    
+    if err := product.AllocateStock(quantity); err != nil {
+        return err
+    }
+    
+    return s.productRepo.Save(context.Background(), product)
+}
+```
+
+### 9.2 ドメインサービスとエンティティの相互作用
+- エンティティの振る舞いとドメインサービスの責務を明確に分ける
+- エンティティの内部状態はエンティティ自身が管理し、サービスは調整を行う
+
+```go
+// Order エンティティのメソッド
+func (o *Order) CalculateTotalAmount() Money {
+    var total Money
+    for _, item := range o.items {
+        itemTotal := item.price.Multiply(item.quantity)
+        total = total.Add(itemTotal)
+    }
+    return total
+}
+
+// ドメインサービス
+type OrderCompletionService struct {
+    orderRepo       OrderRepository
+    inventoryService InventoryService
+    paymentService   PaymentService
+}
+
+func (s *OrderCompletionService) CompleteOrder(orderID OrderID) error {
+    order, err := s.orderRepo.FindByID(context.Background(), orderID)
+    if err != nil {
+        return err
+    }
+    
+    // 在庫確認と確保
+    for _, item := range order.GetItems() {
+        if err := s.inventoryService.AllocateStock(item.ProductID, item.Quantity); err != nil {
+            return err
+        }
+    }
+    
+    // 支払い処理
+    totalAmount := order.CalculateTotalAmount()
+    if err := s.paymentService.ProcessPayment(order.CustomerID(), totalAmount); err != nil {
+        // 在庫をロールバック
+        for _, item := range order.GetItems() {
+            s.inventoryService.ReleaseStock(item.ProductID, item.Quantity)
+        }
+        return err
+    }
+    
+    // 注文完了
+    if err := order.Complete(); err != nil {
+        return err
+    }
+    
+    return s.orderRepo.Save(context.Background(), order)
+}
+```
+
+## 10. 命名規約とコードスタイル
+
+### 10.1 ユビキタス言語に基づく命名
+- コード内の用語はドメインエキスパートとの共通言語（ユビキタス言語）に従う
+- 用語集（ユビキタス言語辞書）を維持し、コード内で一貫して使用する
+
+```go
+// 良い例：ドメイン用語を使用
+type Order struct {
+    // ...
+}
+
+func (o *Order) PlaceOrder() error {
+    // ...
+}
+
+// 悪い例：技術用語や汎用的な用語を使用
+type OrderData struct {
+    // ...
+}
+
+func (o *OrderData) Submit() error {
+    // ...
+}
+```
+
+### 10.2 DDDパターンに基づく命名規約
+- エンティティ：名詞、集約名
+  - `Order`, `Customer`, `Product`
+- 値オブジェクト：名詞＋属性、単位
+  - `OrderID`, `CustomerName`, `Money`, `EmailAddress`
+- リポジトリ：エンティティ名＋Repository
+  - `OrderRepository`, `CustomerRepository`
+- ファクトリ：エンティティ名＋Factory
+  - `OrderFactory`, `ProductFactory`
+- サービス：名詞＋Service
+  - `OrderService`, `PricingService`
+- ドメインイベント：過去形の動詞＋Event
+  - `OrderPlacedEvent`, `PaymentProcessedEvent`
+
+### 10.3 メソッド命名規約
+- コマンド（状態変更）：命令形の動詞
+  - `PlaceOrder()`, `AddItem()`, `CancelOrder()`
+- クエリ（状態取得）：getまたは状態を表す動詞
+  - `GetTotal()`, `IsCompleted()`, `CanBeCancelled()`
+- ファクトリメソッド：Createまたは状態を表す名詞/動詞
+  - `CreateOrder()`, `NewOrder()`, `ReconstructOrder()`
+
+### 10.4 コメント規約
+- パブリックAPI：Godoc規約に従ったコメントを必ず記述
+- ドメインロジック：ビジネスルールを明確に説明
+- 複雑なバリデーション：バリデーションルールを説明
+
+```go
+// Order represents a customer order in the system.
+// It serves as the aggregate root for the order domain.
+type Order struct {
+    // ...
+}
+
+// PlaceOrder changes the order status to "placed" and
+// validates that the order can be fulfilled.
+// Returns ErrEmptyOrder if the order has no items.
+// Returns ErrInvalidStatus if the order is not in draft status.
+func (o *Order) PlaceOrder() error {
+    // ...
+}
+```

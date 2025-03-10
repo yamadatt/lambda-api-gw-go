@@ -50,7 +50,7 @@ func TestConnectDB(t *testing.T) {
 
 	t.Run("Successful database connection", func(t *testing.T) {
 		// モックデータベースの作成
-		db, mock, err := sqlmock.New()
+		db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
 		if err != nil {
 			t.Fatalf("Failed to create mock database connection: %v", err)
 		}
