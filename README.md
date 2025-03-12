@@ -39,6 +39,9 @@ ECSは使用してないときでも起動させておかなければならな�
 go test -v ./... -run TestAPIIntegration
 ```
 
+go test -v -tags=swagger_integration ./... 
+
+
 
 ## 参考
 

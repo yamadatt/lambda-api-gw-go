@@ -1,5 +1,5 @@
-//go:build integration
-// +build integration
+//go:build e2e
+// +build e2e
 
 package main
 
@@ -15,7 +15,7 @@ import (
 )
 
 // SwaggerファイルUIのテスト
-func TestSwaggerEndpoint(t *testing.T) {
+func TestE2ESwaggerEndpoint(t *testing.T) {
 	// テスト環境設定
 	gin.SetMode(gin.TestMode)
 
@@ -47,7 +47,7 @@ func TestSwaggerEndpoint(t *testing.T) {
 }
 
 // 実際のswagger.yamlを使用した統合テスト
-func TestSwaggerWithYAML(t *testing.T) {
+func TestE2ESwaggerWithYAML(t *testing.T) {
 	// 統合テストをスキップするフラグ
 	if testing.Short() {
 		t.Skip("統合テストはshortモードではスキップされます")
@@ -63,19 +63,20 @@ func TestSwaggerWithYAML(t *testing.T) {
 		c.File("./swagger.yaml")
 	})
 
-	// SwaggerハンドラをCustomWrapHandlerで設定
-	r.GET("/swagger/*any", ginSwagger.CustomWrapHandler(
-		&ginSwagger.Config{
-			URL: "/api-docs/swagger.yaml", // YAML取得先を指定
-		},
-		swaggerFiles.Handler,
-	))
+	// SwaggerハンドラをWrapHandlerで設定（シンプルに）
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL("/api-docs/swagger.yaml"))) // オプションでURLを指定
 
-	// 1. Swagger UIのテスト
+	// 1. Swagger UIのテスト（インデックスページにアクセス）
 	t.Run("Swagger UI Test", func(t *testing.T) {
+		// 直接indexページにアクセス
 		req, _ := http.NewRequest("GET", "/swagger/index.html", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
+
+		// デバッグ出力
+		t.Logf("Response Status: %d", w.Code)
+		t.Logf("Response Body: %s", w.Body.String())
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Contains(t, w.Body.String(), "Swagger UI")
@@ -88,12 +89,12 @@ func TestSwaggerWithYAML(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Body.String(), "openapi:") // swagger: -> openapi:
+		assert.Contains(t, w.Body.String(), "openapi:")
 	})
 }
 
 // SwaggerファイルとAPI実装の整合性をテストする
-func TestAPIAgainstSwagger(t *testing.T) {
+func TestE2EAPIAgainstSwagger(t *testing.T) {
 	if testing.Short() {
 		t.Skip("統合テストはshortモードではスキップされます")
 	}

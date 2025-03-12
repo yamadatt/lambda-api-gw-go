@@ -24,6 +24,21 @@ func NewMockSQLDB(t *testing.T) (*SQLDB, sqlmock.Sqlmock) {
 	return &SQLDB{DB: db}, mock
 }
 
+// NewMockSQLDBWithExpectations は sqlmock を使ってモック用の *sql.DB と、それをラップした SQLDB インスタンス、さらに sqlmock.Sqlmock を返します。
+// 標準的な期待値を設定します。
+func NewMockSQLDBWithExpectations(t *testing.T) (*SQLDB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("Failed to create mock database connection: %v", err)
+	}
+
+	// 標準的な期待値を設定
+	mock.ExpectPing()
+	mock.ExpectClose()
+
+	return &SQLDB{DB: db}, mock
+}
+
 // NewMockDB は sqlmock を使ってモック用の DB と sqlmock のインスタンスを返すヘルパー関数です。
 // テストで必ずエラーがない状態でモックが作成できることを保証します。
 func NewMockDB(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {

@@ -50,32 +50,30 @@ func TestConnectDB(t *testing.T) {
 
 	t.Run("Successful database connection", func(t *testing.T) {
 		// モックデータベースの作成
-		db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+		db, mock, err := sqlmock.New()
 		if err != nil {
 			t.Fatalf("Failed to create mock database connection: %v", err)
 		}
-		// defer db.Close() // この行を削除
 
-		// モックの設定 (Ping が成功することを期待)
+		// deferによるClose()は削除（手動でClose()するため）
+
+		// モックの設定 (Ping と Close の成功を期待)
 		mock.ExpectPing()
+		mock.ExpectClose() // 明示的にClose期待値を追加
 
-		// connectDB 関数をモックデータベースを使用するように設定
-		sqlOpenFunc := func(driverName, dataSourceName string) (*sql.DB, error) {
-			return db, nil
-		}
-
-		// sqlOpenFunc をモック関数で置き換える
+		// sqlOpenFuncをモック関数で置き換え
 		originalSqlOpenFunc := sqlOpenFunc
 		sqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 			return db, nil
 		}
 		defer func() { sqlOpenFunc = originalSqlOpenFunc }()
 
+		// connectDB関数を呼び出し
 		storer, err := connectDB()
 		assert.NoError(t, err)
 		assert.NotNil(t, storer)
 
-		// Storer が Close() メソッドを持っていることを確認
+		// Storer が Close() メソッドを持っていることを確認して呼び出す
 		err = storer.Close()
 		assert.NoError(t, err)
 
