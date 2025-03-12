@@ -1,4 +1,4 @@
-.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run
+.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run load-test
 
 # 変数定義
 APP_NAME=stock-api
@@ -110,6 +110,11 @@ db-seed:
 	@echo "Seeding test data..."
 	@cat seed.sql | docker-compose exec -T db mysql -uroot -proot stock_db
 
+# Postmanによる負荷テスト
+load-test:
+	@echo "Postmanによる負荷テストを実行しています..."
+	@cd tests/postman && chmod +x run-load-test.sh && ./run-load-test.sh
+
 # ヘルプ
 help:
 	@echo "Available commands:"
@@ -131,5 +136,6 @@ help:
 	@echo "  make docker-build   - Build Docker image"
 	@echo "  make docker-run     - Run in Docker container"
 	@echo "  make mod-update     - Update Go dependencies"
+	@echo "  make load-test      - Run Postman load tests"
 	@echo "  make all            - Run clean, fmt, lint, test, and build"
 	@echo "  make help           - Show this help message"
