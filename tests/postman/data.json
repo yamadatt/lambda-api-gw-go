@@ -1,0 +1,22 @@
+[
+  {
+    "stockName": "apple",
+    "amount": 50
+  },
+  {
+    "stockName": "banana",
+    "amount": 75
+  },
+  {
+    "stockName": "orange",
+    "amount": 100
+  },
+  {
+    "stockName": "grape",
+    "amount": 40
+  },
+  {
+    "stockName": "melon",
+    "amount": 25
+  }
+]
