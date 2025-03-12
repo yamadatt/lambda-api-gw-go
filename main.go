@@ -34,7 +34,7 @@ func loadConfig() AppConfig {
 
 	// デフォルト値の設定
 	if config.Host == "" {
-		config.Host = "192.168.1.78"
+		config.Host = "localhost"
 	}
 	if config.Port == "" {
 		config.Port = "8080"

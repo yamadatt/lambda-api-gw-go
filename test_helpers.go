@@ -4,22 +4,21 @@
 package main
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"testing"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // テストデータベースコンテナを起動して接続するヘルパー関数
 func setupTestDatabase(t *testing.T) (Storer, func()) {
-	ctx := context.Background()
+	// docker-compose.ymlが存在するか確認
+	if _, err := os.Stat("docker-compose.yaml"); os.IsNotExist(err) {
+		t.Fatalf("docker-compose.ymlファイルが見つかりません。プロジェクトのルートディレクトリに配置してください")
+	}
 
 	// 元の環境変数を保存
 	originalUser := os.Getenv("MYSQL_USER")
@@ -28,8 +27,42 @@ func setupTestDatabase(t *testing.T) (Storer, func()) {
 	originalPort := os.Getenv("DB_PORT")
 	originalDB := os.Getenv("MYSQL_DATABASE")
 
-	// MySQL初期化スクリプト（テーブル作成とテストデータ挿入）
-	initScript := `
+	// テスト用の環境変数を設定
+	os.Setenv("MYSQL_USER", "your_user")
+	os.Setenv("MYSQL_PASSWORD", "your_password")
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_PORT", "3306")
+	os.Setenv("MYSQL_DATABASE", "your_database")
+
+	// Docker Composeでコンテナを起動
+	cmd := exec.Command("docker-compose", "up", "-d", "mysql")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Docker Composeの起動に失敗しました: %v\n出力: %s", err, output)
+	}
+
+	// データベースが準備できるまで待機
+	time.Sleep(5 * time.Second)
+
+	// データベースに接続
+	db, err := connectDB()
+	if err != nil {
+		t.Fatalf("データベース接続に失敗しました: %v", err)
+	}
+	// デバッグ用：接続情報を表示
+	t.Logf("Database connection established:")
+	t.Logf("User: %s", os.Getenv("MYSQL_USER"))
+	t.Logf("Host: %s", os.Getenv("DB_HOST"))
+	t.Logf("Port: %s", os.Getenv("DB_PORT"))
+	t.Logf("Database: %s", os.Getenv("MYSQL_DATABASE"))
+
+	//dbにpingを送る
+	// if err := db.Ping(); err != nil {
+	// 	t.Fatalf("データベースへのpingに失敗しました: %v", err)
+	// }
+
+	// 初期データを投入（オプション）
+	setupSQL := `
     CREATE TABLE IF NOT EXISTS stocks (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL UNIQUE,
@@ -41,127 +74,60 @@ func setupTestDatabase(t *testing.T) (Storer, func()) {
     INSERT INTO stocks (name, amount) VALUES 
     ('apple', 100),
     ('banana', 200),
-    ('orange', 150),
-    ('grape', 75);
+    ('orange', 150)
+    ON DUPLICATE KEY UPDATE amount = VALUES(amount);
     `
 
-	// 一時ファイルにSQLスクリプトを書き込む
-	tmpFile, err := ioutil.TempFile("", "init-*.sql")
+	// SQLファイルを一時的に作成
+	tmpfile, err := ioutil.TempFile("", "setup.*.sql")
 	if err != nil {
-		t.Fatalf("一時ファイル作成エラー: %v", err)
+		t.Fatalf("一時SQLファイルの作成に失敗しました: %v", err)
 	}
-	if _, err := tmpFile.Write([]byte(initScript)); err != nil {
-		t.Fatalf("初期化スクリプト書き込みエラー: %v", err)
-	}
-	tmpFile.Close()
-	defer os.Remove(tmpFile.Name())
+	defer os.Remove(tmpfile.Name())
 
-	// MySQLコンテナの設定
-	req := testcontainers.ContainerRequest{
-		Image:        "mysql:8.0",
-		ExposedPorts: []string{"3306/tcp"},
-		Env: map[string]string{
-			"MYSQL_ROOT_PASSWORD": "rootpass",
-			"MYSQL_DATABASE":      "stock_db_test",
-			"MYSQL_USER":          "testuser",
-			"MYSQL_PASSWORD":      "testpass",
-		},
-		Mounts: testcontainers.Mounts(
-			testcontainers.BindMount(tmpFile.Name(), "/docker-entrypoint-initdb.d/init.sql"),
-		),
-		WaitingFor: wait.ForAll(
-			wait.ForListeningPort("3306/tcp"),
-			wait.ForLog("ready for connections").WithOccurrence(2), // 2回目の「接続準備完了」メッセージを待つ
-		).WithStartupTimeout(2 * time.Minute),
-		Cmd: []string{
-			"--default-authentication-plugin=mysql_native_password",
-			"--character-set-server=utf8mb4",
-			"--collation-server=utf8mb4_unicode_ci",
-			"--innodb_buffer_pool_size=20M", // 小さい値に設定してリソースを節約
-		},
+	if _, err := tmpfile.Write([]byte(setupSQL)); err != nil {
+		t.Fatalf("SQLファイルの書き込みに失敗しました: %v", err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("SQLファイルのクローズに失敗しました: %v", err)
 	}
 
-	// MySQLコンテナの起動
-	mysqlContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	// SQLファイルを実行
+	sqlCmd := exec.Command("docker-compose", "exec", "-T", "mysql", "mysql", "-u"+os.Getenv("MYSQL_USER"), "-p"+os.Getenv("MYSQL_PASSWORD"), os.Getenv("MYSQL_DATABASE"))
+	sqlCmd.Stdin, err = os.Open(tmpfile.Name())
 	if err != nil {
-		t.Fatalf("MySQLコンテナの起動に失敗: %v", err)
+		t.Fatalf("SQLファイルを開けませんでした: %v", err)
 	}
-
-	// コンテナのホストとポートを取得
-	host, err := mysqlContainer.Host(ctx)
+	sqlOutput, err := sqlCmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("ホスト取得エラー: %v", err)
+		t.Fatalf("SQLの実行に失敗しました: %v\n出力: %s", err, sqlOutput)
 	}
 
-	port, err := mysqlContainer.MappedPort(ctx, "3306/tcp")
+	// データベースに接続
+	db, err = connectDB()
 	if err != nil {
-		t.Fatalf("ポート取得エラー: %v", err)
+		t.Fatalf("データベース接続に失敗しました: %v", err)
 	}
-
-	// 環境変数を設定
-	os.Setenv("MYSQL_USER", "testuser")
-	os.Setenv("MYSQL_PASSWORD", "testpass")
-	os.Setenv("DB_HOST", host)
-	os.Setenv("DB_PORT", port.Port())
-	os.Setenv("MYSQL_DATABASE", "stock_db_test")
-
-	// コンテナ情報をログに出力
-	containerID := mysqlContainer.GetContainerID()
-	t.Logf("MySQL コンテナ ID: %s", containerID)
-	t.Logf("MySQL ホスト: %s, ポート: %s", host, port.Port())
-
-	// コンテナのログを取得して表示
-	logs, _ := mysqlContainer.Logs(ctx)
-	defer logs.Close()
-	logBytes, _ := ioutil.ReadAll(logs)
-	t.Logf("コンテナログ: %s", string(logBytes))
-
-	// DBへの接続が確立するまで待機
-	var db *sql.DB
-	maxRetries := 30
-	retryInterval := 2 * time.Second
-
-	for i := 0; i < maxRetries; i++ {
-		// 接続を試行
-		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
-			"testuser", "testpass", host, port.Port(), "stock_db_test")
-		db, err = sql.Open("mysql", dsn)
-
-		if err == nil {
-			err = db.Ping()
-			if err == nil {
-				t.Logf("テストデータベースに接続しました (host: %s, port: %s)", host, port.Port())
-				break
-			}
-		}
-
-		t.Logf("DB接続待機中... (%d/%d): %v", i+1, maxRetries, err)
-		time.Sleep(retryInterval)
-	}
-
-	if err != nil {
-		mysqlContainer.Terminate(ctx)
-		t.Fatalf("データベースに接続できませんでした: %v", err)
-	}
-
-	// クリーンアップ関数
+	// デバッグ用：接続情報を表示
+	t.Logf("Database connection established:")
+	t.Logf("User: %s", os.Getenv("MYSQL_USER"))
+	t.Logf("Host: %s", os.Getenv("DB_HOST"))
+	t.Logf("Port: %s", os.Getenv("DB_PORT"))
+	t.Logf("Database: %s", os.Getenv("MYSQL_DATABASE"))
+	// クリーンアップ関数を返す
 	cleanup := func() {
-		if db != nil {
-			db.Close()
-		}
-		mysqlContainer.Terminate(ctx)
-
-		// 元の環境変数を復元
+		// 環境変数を復元
 		os.Setenv("MYSQL_USER", originalUser)
 		os.Setenv("MYSQL_PASSWORD", originalPass)
 		os.Setenv("DB_HOST", originalHost)
 		os.Setenv("DB_PORT", originalPort)
 		os.Setenv("MYSQL_DATABASE", originalDB)
+
+		// コンテナを停止（オプション）
+		// 継続的にコンテナを動かしたい場合は、この行をコメントアウト
+		stopCmd := exec.Command("docker-compose", "down")
+		stopCmd.Run()
 	}
 
-	// SQLDB構造体をラップして返す
-	return &SQLDB{DB: db}, cleanup
+	return db, cleanup
 }

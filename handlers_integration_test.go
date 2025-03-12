@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -102,7 +103,15 @@ func TestAPIAgainstSwagger(t *testing.T) {
 
 	// テスト用のルーターを設定
 	r := gin.New()
+	fmt.Println("r,db ", r, db)
 	setupRoutes(r, db) // 実際のルートを設定
+
+	// 登録されているルートを表示（デバッグ用）
+	routes := r.Routes()
+	t.Logf("登録されているルート:")
+	for _, route := range routes {
+		t.Logf("Method: %s, Path: %s", route.Method, route.Path)
+	}
 
 	// Swagger定義からAPIエンドポイントをテスト
 
@@ -111,6 +120,11 @@ func TestAPIAgainstSwagger(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/stocks", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
+
+		// デバッグ出力を追加
+		t.Logf("Response Code: %d", w.Code)
+		t.Logf("Response Body: %s", w.Body.String())
+		t.Logf("Content-Type: %s", w.Header().Get("Content-Type"))
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		// レスポンスがJSON形式であることを確認
