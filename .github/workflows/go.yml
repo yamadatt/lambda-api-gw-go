@@ -378,24 +378,23 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        # oapi-codegenをインストール
-        go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen/v2
-        # 検証ツールをインストール (オプション)
+        # v2 バージョンを指定してインストール
+        go install github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen@latest
         go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
         
     - name: Validate OpenAPI schema
       run: |
         # OpenAPIスキーマの検証
         echo "Validating OpenAPI schema..."
-        oapi-codegen -package api -generate types -o /dev/null swagger.yaml
+        oapi-codegen --package api --generate types /dev/null swagger.yaml
 
     - name: Generate code from OpenAPI schema
       run: |
         # スキーマからコード生成
         echo "Generating code from OpenAPI schema..."
-        oapi-codegen -package api -generate types -o api/types_gen.go swagger.yaml
-        oapi-codegen -package api -generate server -o api/server_gen.go swagger.yaml
-        oapi-codegen -package api -generate client -o api/client_gen.go swagger.yaml
+        oapi-codegen --package api --generate types api/types_gen.go swagger.yaml
+        oapi-codegen --package api --generate server api/server_gen.go swagger.yaml
+        oapi-codegen --package api --generate client api/client_gen.go swagger.yaml
 
     - name: Check generated code integrity
       run: |
