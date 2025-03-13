@@ -381,6 +381,10 @@ jobs:
         # 新しいモジュールパスを使用する
         go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
         go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
+        # oapi-codegenのインストール
+        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+        # 代替のOpenAPI比較ツールをインストール
+        npm install -g @openapitools/openapi-diff
         
     - name: Validate OpenAPI schema
       run: |
@@ -422,6 +426,34 @@ jobs:
           if grep -q "BREAKING CHANGE" api-changes.txt; then
             echo "⚠️ Breaking API changes detected! Please review carefully."
             cat api-changes.txt
+            echo "::warning::Breaking API changes detected in OpenAPI schema"
+          fi
+        fi
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        # oapi-codegen インストール
+        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+        # Node.jsベースのツールインストール
+        npm install -g @openapitools/openapi-diff
+
+    - name: Check API schema compatibility (for PRs)
+      if: github.event_name == 'pull_request'
+      run: |
+        # PR環境でのAPIスキーマ互換性チェック
+        echo "Checking API schema compatibility..."
+        git checkout ${{ github.base_ref }}
+        if [ -f swagger.yaml ]; then
+          cp swagger.yaml swagger.yaml.base
+          git checkout ${{ github.head_ref }}
+          # Node.jsツールを使用
+          npx openapi-diff swagger.yaml.base swagger.yaml --markdown > api-changes.md
+          
+          # 結果の確認
+          if grep -q "BREAKING" api-changes.md; then
+            echo "⚠️ Breaking API changes detected! Please review carefully."
+            cat api-changes.md
             echo "::warning::Breaking API changes detected in OpenAPI schema"
           fi
         fi
