@@ -383,8 +383,7 @@ jobs:
         go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
         # oapi-codegenのインストール
         go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-        # 代替のOpenAPI比較ツールをインストール
-        npm install -g @openapitools/openapi-diff
+
         
     - name: Validate OpenAPI schema
       run: |
