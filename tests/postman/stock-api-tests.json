@@ -1,0 +1,427 @@
+{
+  "info": {
+    "_postman_id": "12345678-1234-1234-1234-123456789012",
+    "name": "Stock API Tests",
+    "description": "Stock API のテストコレクション",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "基本的な機能テスト",
+      "item": [
+        {
+          "name": "Get All Stocks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"ステータスコードは200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"レスポンスは配列を含む\", function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(Array.isArray(jsonData)).to.be.true;",
+                  "});",
+                  "",
+                  "if (pm.response.json().length > 0) {",
+                  "    pm.test(\"各アイテムにnameとamountが含まれている\", function() {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData[0]).to.have.property('name');",
+                  "        pm.expect(jsonData[0]).to.have.property('amount');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks"
+              ]
+            },
+            "description": "すべての在庫商品を取得"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Stock by Name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"ステータスコードは200\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"正しい商品データが返される\", function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData.name).to.eql(pm.variables.get('stockName'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks/{{stockName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks",
+                "{{stockName}}"
+              ]
+            },
+            "description": "特定の商品を名前で取得"
+          },
+          "response": []
+        },
+        {
+          "name": "Create New Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"ステータスコードは201 Created\", function() {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"作成した商品データが返される\", function() {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('amount');",
+                  "    pm.expect(jsonData.name).to.eql(\"newproduct\");",
+                  "    pm.expect(jsonData.amount).to.eql(50);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// 重複を避けるためにユニークな名前を生成",
+                  "const timestamp = new Date().getTime();",
+                  "pm.variables.set('uniqueProductName', 'newproduct' + timestamp);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{uniqueProductName}}\",\n  \"amount\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks"
+              ]
+            },
+            "description": "新しい商品を作成"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "エラーケーステスト",
+      "item": [
+        {
+          "name": "Get Non-existent Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"存在しない商品は404を返す\", function() {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks/non-existent-product",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks",
+                "non-existent-product"
+              ]
+            },
+            "description": "存在しない商品名でリクエスト"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Stock with Invalid Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"無効なデータは400を返す\", function() {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"amount\": -10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks"
+              ]
+            },
+            "description": "無効なデータでPOSTリクエスト"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "負荷テストシナリオ",
+      "item": [
+        {
+          "name": "Get Random Stock",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ランダムなストック名を選択",
+                  "const stockNames = JSON.parse(pm.environment.get('randomStockNames'));",
+                  "const randomIndex = Math.floor(Math.random() * stockNames.length);",
+                  "pm.variables.set('randomStock', stockNames[randomIndex]);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// レスポンスタイムを記録",
+                  "pm.test(\"レスポンス時間の確認\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    console.log(`レスポンス時間: ${pm.response.responseTime}ms`);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks/{{randomStock}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks",
+                "{{randomStock}}"
+              ]
+            },
+            "description": "ランダムな商品をリクエスト（負荷テスト用）"
+          },
+          "response": []
+        },
+        {
+          "name": "List All Stocks",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// リクエスト間隔を設定",
+                  "const delay = pm.environment.get('requestDelay');",
+                  "if (delay) {",
+                  "    setTimeout(function(){}, parseInt(delay));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"レスポンス時間の確認\", function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    console.log(`レスポンス時間: ${pm.response.responseTime}ms`);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks"
+              ]
+            },
+            "description": "全商品リスト取得（負荷テスト用）"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Random Stock",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// ユニークな商品名を生成",
+                  "const timestamp = new Date().getTime();",
+                  "const random = Math.floor(Math.random() * 1000);",
+                  "pm.variables.set('randomProductName', `loadtest-${timestamp}-${random}`);",
+                  "",
+                  "// ランダムな数量を生成（1-100）",
+                  "pm.variables.set('randomAmount', Math.floor(Math.random() * 100) + 1);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"レスポンス時間の確認\", function() {",
+                  "    pm.response.to.have.status(201);",
+                  "    console.log(`レスポンス時間: ${pm.response.responseTime}ms`);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{randomProductName}}\",\n  \"amount\": {{randomAmount}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/stocks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "stocks"
+              ]
+            },
+            "description": "ランダムな商品を作成（負荷テスト用）"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全リクエストの前に実行されるスクリプト",
+          "console.log('リクエスト開始:', new Date().toISOString());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// 全レスポンスの後に実行されるスクリプト",
+          "console.log('レスポンス受信:', new Date().toISOString());",
+          "console.log('ステータス:', pm.response.code);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "apiVersion",
+      "value": "v1"
+    }
+  ]
+}

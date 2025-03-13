@@ -1,4 +1,4 @@
-.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run load-test
+.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run load-test openapi-gen openapi-test
 
 # 変数定義
 APP_NAME=stock-api
@@ -115,27 +115,22 @@ load-test:
 	@echo "Postmanによる負荷テストを実行しています..."
 	@cd tests/postman && chmod +x run-load-test.sh && ./run-load-test.sh
 
+# OpenAPIコード生成
+openapi-gen:
+    @echo "Generating code from OpenAPI schema..."
+    oapi-codegen -package api -generate types -o api/types_gen.go swagger.yaml
+    oapi-codegen -package api -generate server -o api/server_gen.go swagger.yaml
+    oapi-codegen -package api -generate client -o api/client_gen.go swagger.yaml
+
+# OpenAPIテスト実行
+openapi-test:
+    @echo "Running OpenAPI tests..."
+    go test -v -tags=oapi ./...
+
 # ヘルプ
 help:
 	@echo "Available commands:"
 	@echo "  make build          - Build the application"
 	@echo "  make build-lambda   - Build for AWS Lambda deployment"
 	@echo "  make clean          - Clean up build artifacts"
-	@echo "  make test           - Run all tests"
-	@echo "  make test-short     - Run tests excluding integration tests"
-	@echo "  make test-integration - Run integration tests"
-	@echo "  make test-swagger   - Run Swagger validation tests"
-	@echo "  make test-coverage  - Generate test coverage report"
-	@echo "  make run            - Run the application locally"
-	@echo "  make swag           - Generate Swagger documentation"
-	@echo "  make lint           - Run linter"
-	@echo "  make fmt            - Format code"
-	@echo "  make db-setup       - Setup database environment"
-	@echo "  make db-stop        - Stop database environment"
-	@echo "  make db-seed        - Seed test data"
-	@echo "  make docker-build   - Build Docker image"
-	@echo "  make docker-run     - Run in Docker container"
-	@echo "  make mod-update     - Update Go dependencies"
-	@echo "  make load-test      - Run Postman load tests"
-	@echo "  make all            - Run clean, fmt, lint, test, and build"
-	@echo "  make help           - Show this help message"
+	@echo "  make test           - Run all tests"	#!/bin/bash

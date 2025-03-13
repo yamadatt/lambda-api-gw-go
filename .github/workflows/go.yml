@@ -360,6 +360,72 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: Kesin11/actions-timeline@v2
+
+  oapi-tests:
+    name: OpenAPI Schema Tests
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+        cache: true
+
+    - name: Install dependencies
+      run: |
+        go mod download
+        # oapi-codegenをインストール
+        go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
+        # 検証ツールをインストール (オプション)
+        go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
+        
+    - name: Validate OpenAPI schema
+      run: |
+        # OpenAPIスキーマの検証
+        echo "Validating OpenAPI schema..."
+        oapi-codegen -package api -generate types -o /dev/null swagger.yaml
+
+    - name: Generate code from OpenAPI schema
+      run: |
+        # スキーマからコード生成
+        echo "Generating code from OpenAPI schema..."
+        oapi-codegen -package api -generate types -o api/types_gen.go swagger.yaml
+        oapi-codegen -package api -generate server -o api/server_gen.go swagger.yaml
+        oapi-codegen -package api -generate client -o api/client_gen.go swagger.yaml
+
+    - name: Check generated code integrity
+      run: |
+        # 生成されたコードがコンパイルできることを確認
+        echo "Checking generated code integrity..."
+        go build -o /dev/null ./api/...
+      
+    - name: Run OpenAPI tests
+      run: |
+        # oapi-codegenと既存コードの整合性テスト
+        go test -v -tags=oapi ./...
+        
+    - name: Check API schema compatibility (for PRs)
+      if: github.event_name == 'pull_request'
+      run: |
+        # PR環境でのAPIスキーマ互換性チェック
+        echo "Checking API schema compatibility..."
+        git checkout ${{ github.base_ref }}
+        if [ -f swagger.yaml ]; then
+          cp swagger.yaml swagger.yaml.base
+          git checkout ${{ github.head_ref }}
+          openapi-diff swagger.yaml.base swagger.yaml > api-changes.txt
+          
+          # 破壊的変更の検出
+          if grep -q "BREAKING CHANGE" api-changes.txt; then
+            echo "⚠️ Breaking API changes detected! Please review carefully."
+            cat api-changes.txt
+            echo "::warning::Breaking API changes detected in OpenAPI schema"
+          fi
+        fi
   # docker:
   #   name: Build and Push Docker image
   #   runs-on: ubuntu-latest

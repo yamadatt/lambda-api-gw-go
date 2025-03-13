@@ -1,0 +1,31 @@
+{
+  "id": "stock-api-local-env",
+  "name": "Stock API Local Environment",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "apiVersion",
+      "value": "v1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "stockName",
+      "value": "apple",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "contentType",
+      "value": "application/json",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

@@ -4,8 +4,8 @@
 mkdir -p reports
 
 # テストパラメータ
-ITERATIONS=100      # 繰り返し回数
-CONCURRENCY=10      # 同時実行数
+ITERATIONS=1000      # 繰り返し回数
+CONCURRENCY=50      # 同時実行数
 DELAY=0             # リクエスト間の遅延(ms)
 
 # Docker Composeでアプリを起動
