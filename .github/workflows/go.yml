@@ -378,8 +378,8 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        # v2 バージョンを指定してインストール
-        go install github.com/deepmap/oapi-codegen/v2/cmd/oapi-codegen@latest
+        # 新しいモジュールパスを使用する
+        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
         go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
         
     - name: Validate OpenAPI schema
