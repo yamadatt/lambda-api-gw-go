@@ -380,9 +380,7 @@ jobs:
         go mod download
         # 新しいモジュールパスを使用する
         go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-        go install github.com/getkin/kin-openapi/cmd/openapi-diff@latest
-        # oapi-codegenのインストール
-        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
 
         
     - name: Validate OpenAPI schema
