@@ -376,7 +376,7 @@ jobs:
           go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.0
 
           # Node.jsツール (openapi-diff) の特定バージョンをグローバルインストール
-          npm install -g @openapitools/openapi-diff@2.0.1
+          #npm install -g @openapitools/openapi-diff@2.0.1
 
       - name: Validate OpenAPI schema
         run: |
