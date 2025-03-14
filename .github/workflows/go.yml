@@ -367,20 +367,20 @@ jobs:
           go-version: '1.23'
           cache: true
 
-
       - name: Install oapi-codegen
         run: |
-          # 最新版のoapi-codegenをインストール（必要に応じてバージョン指定可）
+          # 最新版のoapi-codegenをインストール
           go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 
       - name: Validate swagger.yaml
         run: |
           echo "Validating swagger.yaml using oapi-codegen..."
-          # /dev/null を指定することでコード生成せず、スキーマの検証のみを行う
-          oapi-codegen --package api --generate types /dev/null swagger.yaml
-
-
-
+          # 正しい構文で出力先を指定
+          oapi-codegen --package api --generate types --output /dev/null swagger.yaml || {
+            echo "OpenAPI schema validation failed!"
+            exit 1
+          }
+          echo "OpenAPI schema validation successful!"
 
   actions-timeline:
     name: Actions Timeline
