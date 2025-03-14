@@ -353,79 +353,79 @@ jobs:
         MYSQL_DATABASE: stocks
         DB_CONFIG_PATH: ./db_config.json
 
-oapi-tests:
-  name: OpenAPI Schema Tests
-  runs-on: ubuntu-latest
-  needs: build
+  oapi-tests:
+    name: OpenAPI Schema Tests
+    runs-on: ubuntu-latest
+    needs: build
 
-  steps:
-    - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-        cache: true
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
 
-    - name: Install dependencies
-      run: |
-        # Goモジュール依存関係をインストール
-        go mod download
+      - name: Install dependencies
+        run: |
+          # Goモジュール依存関係をインストール
+          go mod download
 
-        # oapi-codegen の特定バージョンをインストール（例: v2.4.0）
-        go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.0
+          # oapi-codegen の特定バージョンをインストール（例: v2.4.0）
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.0
 
-        # Node.jsツール (openapi-diff) の特定バージョンをグローバルインストール
-        npm install -g @openapitools/openapi-diff@1.1.0
+          # Node.jsツール (openapi-diff) の特定バージョンをグローバルインストール
+          npm install -g @openapitools/openapi-diff@1.1.0
 
-    - name: Validate OpenAPI schema
-      run: |
-        echo "Validating OpenAPI schema..."
-        # /dev/nullを指定することでコード生成せず、スキーマの検証のみ実施
-        oapi-codegen --package api --generate types /dev/null swagger.yaml
+      - name: Validate OpenAPI schema
+        run: |
+          echo "Validating OpenAPI schema..."
+          # /dev/nullを指定することでコード生成せず、スキーマの検証のみ実施
+          oapi-codegen --package api --generate types /dev/null swagger.yaml
 
-    - name: Generate code from OpenAPI schema
-      run: |
-        echo "Generating code from OpenAPI schema..."
-        oapi-codegen --package api --generate types api/types_gen.go swagger.yaml
-        oapi-codegen --package api --generate server api/server_gen.go swagger.yaml
-        oapi-codegen --package api --generate client api/client_gen.go swagger.yaml
+      - name: Generate code from OpenAPI schema
+        run: |
+          echo "Generating code from OpenAPI schema..."
+          oapi-codegen --package api --generate types api/types_gen.go swagger.yaml
+          oapi-codegen --package api --generate server api/server_gen.go swagger.yaml
+          oapi-codegen --package api --generate client api/client_gen.go swagger.yaml
 
-    - name: Check generated code integrity
-      run: |
-        echo "Checking generated code integrity..."
-        # 生成されたコードがコンパイルできるか確認
-        go build -o /dev/null ./api/...
+      - name: Check generated code integrity
+        run: |
+          echo "Checking generated code integrity..."
+          # 生成されたコードがコンパイルできるか確認
+          go build -o /dev/null ./api/...
 
-    - name: Run OpenAPI tests
-      run: |
-        echo "Running OpenAPI tests..."
-        # oapi-codegenと既存コードの整合性テスト
-        go test -v -tags=oapi ./...
+      - name: Run OpenAPI tests
+        run: |
+          echo "Running OpenAPI tests..."
+          # oapi-codegenと既存コードの整合性テスト
+          go test -v -tags=oapi ./...
 
-    - name: Check API schema compatibility (for PRs)
-      if: github.event_name == 'pull_request'
-      run: |
-        echo "Checking API schema compatibility..."
-        # ベースブランチのswagger.yamlを取得するためにチェックアウト
-        git checkout ${{ github.base_ref }}
-        if [ -f swagger.yaml ]; then
-          cp swagger.yaml swagger.yaml.base
-          # HEADブランチに戻る
-          git checkout ${{ github.head_ref }}
-          # Node.jsツールでMarkdown形式の差分レポートを作成
-          npx openapi-diff swagger.yaml.base swagger.yaml --markdown > api-changes.md
-          
-          # BREAKINGな変更があれば、警告表示しワークフローを失敗させる
-          if grep -q "BREAKING" api-changes.md; then
-            echo "⚠️ Breaking API changes detected! Please review carefully."
-            cat api-changes.md
-            echo "::warning::Breaking API changes detected in OpenAPI schema"
-            exit 1
+      - name: Check API schema compatibility (for PRs)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Checking API schema compatibility..."
+          # ベースブランチのswagger.yamlを取得するためにチェックアウト
+          git checkout ${{ github.base_ref }}
+          if [ -f swagger.yaml ]; then
+            cp swagger.yaml swagger.yaml.base
+            # HEADブランチに戻る
+            git checkout ${{ github.head_ref }}
+            # Node.jsツールでMarkdown形式の差分レポートを作成
+            npx openapi-diff swagger.yaml.base swagger.yaml --markdown > api-changes.md
+            
+            # BREAKINGな変更があれば、警告表示しワークフローを失敗させる
+            if grep -q "BREAKING" api-changes.md; then
+              echo "⚠️ Breaking API changes detected! Please review carefully."
+              cat api-changes.md
+              echo "::warning::Breaking API changes detected in OpenAPI schema"
+              exit 1
+            fi
+          else
+            echo "No swagger.yaml found in base branch; skipping compatibility check."
           fi
-        else
-          echo "No swagger.yaml found in base branch; skipping compatibility check."
-        fi
 
 
 
