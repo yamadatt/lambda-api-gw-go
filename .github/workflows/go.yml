@@ -378,11 +378,6 @@ jobs:
           # Node.jsツール (openapi-diff) の特定バージョンをグローバルインストール
           #npm install -g @openapitools/openapi-diff@2.0.1
 
-      - name: Validate OpenAPI schema
-        run: |
-          echo "Validating OpenAPI schema..."
-          # /dev/nullを指定することでコード生成せず、スキーマの検証のみ実施
-          oapi-codegen --package api --generate types /dev/null swagger.yaml
 
       - name: Generate code from OpenAPI schema
         run: |
