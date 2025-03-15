@@ -60,6 +60,7 @@ jobs:
         MYSQL_PASSWORD: test
         DB_HOST: localhost
         MYSQL_DATABASE: stocks
+        TEST_MODE: true
 
     - name: Convert coverage to Cobertura format
       run: |
