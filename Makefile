@@ -117,15 +117,15 @@ load-test:
 
 # OpenAPIコード生成
 openapi-gen:
-    @echo "Generating code from OpenAPI schema..."
-    oapi-codegen --package api --generate types api/types_gen.go swagger.yaml
-    oapi-codegen --package api --generate server api/server_gen.go swagger.yaml
-    oapi-codegen --package api --generate client api/client_gen.go swagger.yaml
+	@echo "Generating code from OpenAPI schema..."
+	oapi-codegen --package api --generate types api/types_gen.go swagger.yaml
+	oapi-codegen --package api --generate server api/server_gen.go swagger.yaml
+	oapi-codegen --package api --generate client api/client_gen.go swagger.yaml
 
 # OpenAPIテスト実行
 openapi-test:
-    @echo "Running OpenAPI tests..."
-    go test -v -tags=oapi ./...
+	@echo "Running OpenAPI tests..."
+	go test -v -tags=oapi ./...
 
 # ヘルプ
 help:

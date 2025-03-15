@@ -11,13 +11,6 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-// @title Stock Management API
-// @version 1.0
-// @description 在庫管理のための API
-// @contact.name API サポート
-// @contact.email support@example.com
-// @BasePath /v1
-
 // アプリケーション設定を一元管理する構造体
 type AppConfig struct {
 	Host string

@@ -16,6 +16,7 @@ type Storer interface {
 	QueryRow(query string, args ...interface{}) *sql.Row
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 	Close() error // Close メソッドを追加
+	
 }
 
 // SQLDB は sql.DB をラップし、Storer インターフェースを実装します。

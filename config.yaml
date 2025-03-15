@@ -1,0 +1,8 @@
+package: api           # 生成されるコードのパッケージ名
+generate:
+  models: true         # モデルコードの生成
+  gin-server: true     # Gin用サーバーコードの生成
+  client: true         # クライアントコードの生成
+  embedded-spec: true  # OpenAPI仕様を埋め込む
+output: api/api.gen.go # 生成されるコードの出力先
+
