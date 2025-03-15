@@ -4,6 +4,8 @@ go 1.23.4
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/aws/aws-lambda-go v1.47.0
+	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
 	github.com/getkin/kin-openapi v0.130.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-sql-driver/mysql v1.9.0

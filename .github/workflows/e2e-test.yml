@@ -1,0 +1,98 @@
+name: E2E Tests with API Gateway & Lambda
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:  # 手動実行用トリガー
+
+env:
+  AWS_REGION: ap-northeast-1
+  TERRAFORM_VERSION: 1.5.7
+  APP_NAME: lambda-api-gw-go
+  TF_STATE_BUCKET: your-tf-state-bucket  # GitHub Actionsが使用するTerraform状態を保存するバケット
+  # ステージ名をGitHub Actionsの実行IDでユニークにする（リソース名衝突を防ぐ）
+  STAGE_NAME: e2e-${{ github.run_id }}
+  DB_PASSWORD: ${{ secrets.E2E_DB_PASSWORD }}
+
+jobs:
+  e2e-test:
+    name: E2E Test with AWS Infrastructure
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # OpenID Connect認証に必要
+      contents: read    # リポジトリ内容の読み取り
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Install AWS SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: Build SAM application
+        run: |
+          sam build
+
+      - name: Deploy test stack
+        id: deploy
+        run: |
+          sam deploy \
+            --stack-name my-api-test-${{ github.run_id }} \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides StageName=test DatabaseUrl=mysql://testuser:testpass@mysql:3306/testdb \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --region us-east-1
+
+      - name: Initialize Database
+        run: |
+          # 初期スキーマの投入（例：migrations/init.sql を実行）
+          mysql --host=mysql --user=testuser --password=testpass testdb < migrations/init.sql
+
+      - name: Run API e2e tests
+        run: |
+          # CloudFormation出力からAPIエンドポイントのURLを取得
+          API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --region us-east-1)
+          echo "API URL: ${API_URL}"
+          
+          # e2eテストを実行（例：curlでGETリクエストを送信）
+          curl -s ${API_URL}/resource | jq .
+          # テスト結果のチェックなどを必要に応じて実施
+
+      - name: Cleanup test stack
+        if: always()
+        run: |
+          sam delete --stack-name my-api-test-${{ github.run_id }} --no-prompts --region us-east-1
+

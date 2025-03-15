@@ -1,4 +1,4 @@
-.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run load-test openapi-gen openapi-test
+.PHONY: all build clean test test-short test-integration test-coverage run swag lint fmt help docker-build docker-run load-test openapi-gen openapi-test build-lambda
 
 # 変数定義
 APP_NAME=stock-api
@@ -6,6 +6,7 @@ GO_FILES=$(shell find . -type f -name "*.go" -not -path "./vendor/*")
 VERSION=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
+ECR_REPO ?= $(shell aws ecr describe-repositories --query "repositories[?repositoryName=='$(APP_NAME)-lambda'].repositoryUri" --output text)
 
 # デフォルトターゲット
 all: clean fmt lint test build
@@ -15,12 +16,11 @@ build:
 	@echo "Building $(APP_NAME)..."
 	@go build $(LDFLAGS) -o $(APP_NAME) .
 
-# Lambda用にビルド
+# Lambda用にビルド (Dockerfileで使用するため)
 build-lambda:
-	@echo "Building for AWS Lambda..."
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bootstrap .
-	@zip function.zip bootstrap
-	@rm bootstrap
+    @echo "Building for AWS Lambda..."
+    @GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o lambda-handler main.go handlers.go database.go
+    @echo "Lambda handler built: lambda-handler"
 
 # クリーンアップ
 clean:
@@ -127,10 +127,38 @@ openapi-test:
 	@echo "Running OpenAPI tests..."
 	go test -v -tags=oapi ./...
 
+# Lambda Dockerイメージ関連
+docker-lambda-build:
+    @echo "Building Lambda Docker image..."
+    @docker build -t $(APP_NAME)-lambda:$(VERSION) .
+    @echo "Lambda Docker image built: $(APP_NAME)-lambda:$(VERSION)"
+
+docker-lambda-push:
+    @echo "Pushing Lambda Docker image to ECR..."
+    @aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin $(ECR_REPO)
+    @docker tag $(APP_NAME)-lambda:$(VERSION) $(ECR_REPO)/$(APP_NAME)-lambda:$(VERSION)
+    @docker push $(ECR_REPO)/$(APP_NAME)-lambda:$(VERSION)
+    @echo "Lambda Docker image pushed: $(ECR_REPO)/$(APP_NAME)-lambda:$(VERSION)"
+
+docker-lambda-run:
+    @echo "Running Lambda Docker container locally..."
+    @docker run -p 9000:8080 \
+        --env-file .env \
+        $(APP_NAME)-lambda:$(VERSION)
+    @echo "Lambda endpoint available at: http://localhost:9000/2015-03-31/functions/function/invocations"
+
+# AWS SAM Localを使用したLambda実行（代替方法）
+sam-local:
+    @echo "Running Lambda with SAM Local..."
+    @sam local start-api --host localhost --port 3000
+
 # ヘルプ
 help:
-	@echo "Available commands:"
-	@echo "  make build          - Build the application"
-	@echo "  make build-lambda   - Build for AWS Lambda deployment"
-	@echo "  make clean          - Clean up build artifacts"
-	@echo "  make test           - Run all tests"	#!/bin/bash
+    @echo "Available commands:"
+    @echo "  make build             - Build the application"
+    @echo "  make build-lambda      - Build Lambda handler locally"
+    @echo "  make docker-lambda-build - Build Lambda Docker container"
+    @echo "  make docker-lambda-run   - Run Lambda container locally"
+    @echo "  make docker-lambda-push  - Push Lambda container to ECR"
+    @echo "  make sam-local         - Run Lambda with SAM Local"
+    # 既存のhelpコマンドの内容...

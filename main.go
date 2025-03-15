@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	_ "lambda-api-gw-go/docs" // swaggoが生成したSwaggerドキュメントをインポート
 	"log"
 	"os"
 
+	_ "lambda-api-gw-go/docs" // swaggoが生成したSwaggerドキュメントをインポート
+
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/aws/aws-lambda-go/lambda"
+	ginadapter "github.com/awslabs/aws-lambda-go-api-proxy/gin"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+var ginLambda *ginadapter.GinLambda
 
 // アプリケーション設定を一元管理する構造体
 type AppConfig struct {
@@ -36,15 +43,41 @@ func loadConfig() AppConfig {
 	return config
 }
 
-func main() {
+func init() {
+	// このinit関数はLambda起動時に一度だけ実行される
+	log.Printf("Gin cold start")
+
 	// 設定を読み込む
 	config := loadConfig()
 
-	// ルーター設定（設定を渡す）
+	// Lambdaでは本番モードが推奨
+	gin.SetMode(gin.ReleaseMode)
+
+	// ルーター設定
 	r := setupRouter(config)
 
-	// サーバー起動
-	log.Fatal(r.Run(":" + config.Port))
+	// Ginアダプターを初期化
+	ginLambda = ginadapter.New(r)
+}
+
+// Lambda用ハンドラー関数
+func Handler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	// Ginルーターにリクエストを転送
+	return ginLambda.ProxyWithContext(ctx, req)
+}
+
+func main() {
+	// ローカル開発環境とLambda環境を判別
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		// Lambda環境ではLambdaハンドラを起動
+		lambda.Start(Handler)
+	} else {
+		// ローカル環境では通常のHTTPサーバーを起動
+		config := loadConfig()
+		r := setupRouter(config)
+		log.Printf("Starting local server on port %s", config.Port)
+		log.Fatal(r.Run(":" + config.Port))
+	}
 }
 
 func setupRouter(config AppConfig) *gin.Engine {
@@ -53,7 +86,11 @@ func setupRouter(config AppConfig) *gin.Engine {
 	// DB接続
 	db, err := connectDB()
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		log.Printf("Warning: Failed to connect to database: %v", err)
+		// Lambda環境ではエラーをログに出力するだけでプロセスを終了させない
+		if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") == "" {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
 	}
 
 	// ルート設定
@@ -64,13 +101,15 @@ func setupRouter(config AppConfig) *gin.Engine {
 		c.File("./swagger.yaml")
 	})
 
-	// 設定値を使用
-	serverURL := fmt.Sprintf("http://%s:%s", config.Host, config.Port)
+	// APIゲートウェイのステージ名などを考慮したベースURL
+	baseURL := os.Getenv("API_BASE_URL")
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("http://%s:%s", config.Host, config.Port)
+	}
 
 	// Swagger UIのエンドポイントを追加
-	// http://192.168.1.78:8080/api-docs/swagger.yaml にアクセスすると、Swagger UI が表示される
 	r.GET("/swagger/*any", ginSwagger.CustomWrapHandler(&ginSwagger.Config{
-		URL: serverURL + "/api-docs/swagger.yaml",
+		URL: baseURL + "/api-docs/swagger.yaml",
 	}, swaggerFiles.Handler))
 
 	return r
