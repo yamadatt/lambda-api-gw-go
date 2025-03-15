@@ -75,10 +75,10 @@ jobs:
             --no-fail-on-empty-changeset \
             --region ap-northeast-1
 
-      - name: Initialize Database
-        run: |
-          # 初期スキーマの投入（例：migrations/init.sql を実行）
-          mysql --host=mysql --user=testuser --password=testpass testdb < migrations/init.sql
+    #   - name: Initialize Database
+    #     run: |
+    #       # 初期スキーマの投入（例：migrations/init.sql を実行）
+    #       mysql --host=mysql --user=testuser --password=testpass testdb < migrations/init.sql
 
       - name: Run API e2e tests
         run: |
