@@ -6,4 +6,4 @@ s3_prefix = "sam-app"
 region = "ap-northeast-1"
 #profile = "koji"
 capabilities = "CAPABILITY_IAM"
-image_repositories = ["StockFunction=828973891538.dkr.ecr.ap-northeast-1.amazonaws.com/kojikojiapi7f030500/helloworldfunction19d43fc4repo"]
+image_repositories = ["StockFunction=449671225256.dkr.ecr.ap-northeast-1.amazonaws.com/kojikojiapi7f030500/helloworldfunction19d43fc4repo"]
