@@ -9,7 +9,6 @@ on:
 
 env:
   AWS_REGION: ap-northeast-1
-  TERRAFORM_VERSION: 1.5.7
   APP_NAME: lambda-api-gw-go
   TF_STATE_BUCKET: your-tf-state-bucket  # GitHub Actionsが使用するTerraform状態を保存するバケット
   # ステージ名をGitHub Actionsの実行IDでユニークにする（リソース名衝突を防ぐ）
