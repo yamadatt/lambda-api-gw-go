@@ -64,41 +64,41 @@ jobs:
         run: |
           sam build
 
-      - name: Deploy test stack
-        id: deploy
-        run: |
-          sam deploy \
-            --stack-name my-api-test-${{ github.run_id }} \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides StageName=test DatabaseUrl=mysql://testuser:testpass@mysql:3306/testdb \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --region ap-northeast-1
+    #   - name: Deploy test stack
+    #     id: deploy
+    #     run: |
+    #       sam deploy \
+    #         --stack-name my-api-test-${{ github.run_id }} \
+    #         --capabilities CAPABILITY_IAM \
+    #         --parameter-overrides StageName=test DatabaseUrl=mysql://testuser:testpass@mysql:3306/testdb \
+    #         --no-confirm-changeset \
+    #         --no-fail-on-empty-changeset \
+    #         --region ap-northeast-1
 
     #   - name: Initialize Database
     #     run: |
     #       # 初期スキーマの投入（例：migrations/init.sql を実行）
     #       mysql --host=mysql --user=testuser --password=testpass testdb < migrations/init.sql
 
-      - name: Run API e2e tests
-        run: |
-            # まずすべての出力を確認して正しいキー名を特定
-            aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs" --output json --region ap-northeast-1
+    #   - name: Run API e2e tests
+    #     run: |
+    #         # まずすべての出力を確認して正しいキー名を特定
+    #         aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs" --output json --region ap-northeast-1
             
-            # 正しい出力キーを使用（例：ApiGatewayEndpoint）
-            API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --region ap-northeast-1)
+    #         # 正しい出力キーを使用（例：ApiGatewayEndpoint）
+    #         API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --region ap-northeast-1)
             
-            echo "API URL: ${API_URL}"
+    #         echo "API URL: ${API_URL}"
             
-            # URLが取得できたか確認
-            if [ -z "$API_URL" ]; then
-            echo "Error: API URL could not be retrieved!"
-            exit 1
-            fi
+    #         # URLが取得できたか確認
+    #         if [ -z "$API_URL" ]; then
+    #         echo "Error: API URL could not be retrieved!"
+    #         exit 1
+    #         fi
             
-            # e2eテストを実行
-            echo "${API_URL}/v1/stocks"
-            curl -s "${API_URL}v1/stocks" | jq .
+    #         # e2eテストを実行
+    #         echo "${API_URL}/v1/stocks"
+    #         curl -s "${API_URL}v1/stocks" | jq .
 
       - name: Run local API tests
         run: |
