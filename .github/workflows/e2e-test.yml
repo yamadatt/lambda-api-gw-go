@@ -118,23 +118,23 @@ jobs:
           # stock_dbの存在確認
           docker exec mysql-db mysql -uroot -prootpass -e "USE stock_db; SHOW TABLES;"
 
-      - name: Debug network configuration
-        run: |
-          # Docker環境情報を表示
-          docker info
+    #   - name: Debug network configuration
+    #     run: |
+    #       # Docker環境情報を表示
+    #       docker info
           
-          # ネットワーク設定を確認
-          docker network ls
+    #       # ネットワーク設定を確認
+    #       docker network ls
           
-          # MySQLコンテナの状態を確認
-          docker ps
-          docker logs mysql-test
+    #       # MySQLコンテナの状態を確認
+    #       docker ps
+    #       docker logs mysql-test
           
-          # ネットワーク接続テスト
-          docker run --rm curlimages/curl curl -v telnet://mysql-test:3306
+    #       # ネットワーク接続テスト
+    #       docker run --rm curlimages/curl curl -v telnet://mysql-test:3306
           
-          # ホストからのMySQL接続テスト
-          mysql -h 127.0.0.1 -P 3306 -u testuser -ptestpass testdb -e "SELECT 1"
+    #       # ホストからのMySQL接続テスト
+    #       mysql -h 127.0.0.1 -P 3306 -u testuser -ptestpass testdb -e "SELECT 1"
 
       - name: Run local API tests
         run: |
