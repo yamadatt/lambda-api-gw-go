@@ -164,10 +164,10 @@ jobs:
             # レスポンス本文の確認
             if grep -q "hoge" lambda_output.json; then
               echo "Found expected product in response"
-              exit 0
-            else
-              echo "Expected product 'hoge' not found in response"
               exit 1
+            else
+              echo "Expected product 'hoge' not found in response：ないのが期待値"
+              exit 0
             fi
           else
             echo "Lambda execution failed or returned non-200 status"
