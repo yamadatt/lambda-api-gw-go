@@ -70,8 +70,8 @@ jobs:
           cat > env.json << EOF
           {
             "StockFunction": {
-              "DB_HOST": "host.docker.internal",
-              "DB_PORT": "3306",
+              "DB_HOST": "localhost",
+              "DB_PORT": "3307",  # 3307に変更
               "MYSQL_USER": "testuser",
               "MYSQL_PASSWORD": "testpass",
               "MYSQL_DATABASE": "testdb"
@@ -85,7 +85,7 @@ jobs:
             -e MYSQL_DATABASE=testdb \
             -e MYSQL_USER=testuser \
             -e MYSQL_PASSWORD=testpass \
-            -p 3306:3306 \
+            -p 3307:3306 \  # 3306ではなく3307を使用
             mysql:8.0
           
           # データベースが起動するまで待機
