@@ -44,10 +44,10 @@ Resources:
       DockerContext: ./
       Dockerfile: Dockerfile
 
-Outputs:
-  ApiUrl:
-    Description: "API Gateway endpoint URL for the API"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/"
-  ApiGatewayEndpoint:
-    Description: "Alternative API endpoint"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/"
+# Outputs:
+#   ApiUrl:
+#     Description: "API Gateway endpoint URL for the API"
+#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/"
+#   ApiGatewayEndpoint:
+#     Description: "Alternative API endpoint"
+#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/"

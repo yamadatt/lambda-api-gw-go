@@ -104,3 +104,10 @@ jobs:
         run: |
           sam delete --stack-name my-api-test-${{ github.run_id }} --no-prompts --region ap-northeast-1
 
+  actions-timeline:
+    name: Actions Timeline
+    needs: [e2e-test]
+
+    runs-on: ubuntu-latest
+    steps:
+        - uses: Kesin11/actions-timeline@v2
