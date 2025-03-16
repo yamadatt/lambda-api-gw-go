@@ -1,5 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+
+# パラメータセクションを追加
+Parameters:
+  StageName:
+    Type: String
+    Default: Prod
+    Description: API Gateway stage name
+
 Globals:
   Function:
     Timeout: 5
@@ -44,10 +52,10 @@ Resources:
       DockerContext: ./
       Dockerfile: Dockerfile
 
-# Outputs:
-#   ApiUrl:
-#     Description: "API Gateway endpoint URL for the API"
-#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/"
-#   ApiGatewayEndpoint:
-#     Description: "Alternative API endpoint"
-#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/"
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL for the API"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/"
+  ApiGatewayEndpoint:
+    Description: "Alternative API endpoint"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/"
