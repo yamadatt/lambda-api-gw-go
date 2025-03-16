@@ -72,7 +72,7 @@ jobs:
           # MySQLコンテナを起動
           docker run -d --name mysql-db --network samlocal-network \
             -e MYSQL_ROOT_PASSWORD=rootpass \
-            -e MYSQL_DATABASE=testdb \
+            -e MYSQL_DATABASE=stock_db \
             -e MYSQL_USER=testuser \
             -e MYSQL_PASSWORD=testpass \
             mysql:8.0
@@ -81,8 +81,8 @@ jobs:
           sleep 15
           
           # テストデータ初期化
-          docker exec mysql-db mysql -utestuser -ptestpass testdb -e "CREATE TABLE IF NOT EXISTS stocks (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), amount INT);"
-          docker exec mysql-db mysql -utestuser -ptestpass testdb -e "INSERT INTO stocks (name, amount) VALUES ('apple', 100), ('banana', 200);"
+          docker exec mysql-db mysql -utestuser -ptestpass stock_db -e "CREATE TABLE IF NOT EXISTS stocks (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), amount INT);"
+          docker exec mysql-db mysql -utestuser -ptestpass stock_db -e "INSERT INTO stocks (name, amount) VALUES ('apple', 100), ('banana', 200);"
           
           # env.jsonファイルを作成（コンテナ名をホストとして使用）
           cat > env.json << EOF
@@ -105,6 +105,18 @@ jobs:
           
           # API呼び出しでテスト
           curl -v "http://localhost:3000/v1/stocks" | jq .
+
+      - name: Debug database permissions
+        run: |
+          # データベース一覧の確認
+          docker exec mysql-db mysql -uroot -prootpass -e "SHOW DATABASES;"
+          
+          # ユーザー権限の確認
+          docker exec mysql-db mysql -uroot -prootpass -e "SELECT User, Host, Db FROM mysql.db WHERE User='testuser';"
+          docker exec mysql-db mysql -uroot -prootpass -e "SHOW GRANTS FOR 'testuser'@'%';"
+          
+          # stock_dbの存在確認
+          docker exec mysql-db mysql -uroot -prootpass -e "USE stock_db; SHOW TABLES;"
 
       - name: Debug network configuration
         run: |
