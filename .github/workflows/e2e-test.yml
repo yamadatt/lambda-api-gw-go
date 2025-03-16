@@ -92,7 +92,7 @@ jobs:
               "DB_PORT": "3306",
               "MYSQL_USER": "testuser",
               "MYSQL_PASSWORD": "testpass",
-              "MYSQL_DATABASE": "testdb"
+              "MYSQL_DATABASE": "stock_db"
             }
           }
           EOF
