@@ -104,7 +104,7 @@ jobs:
           sleep 15
           
           # API呼び出しでテスト
-          curl -v "http://localhost:3000/v1/stocks" | jq .
+          curl -v "http://localhost:3000/v1/stocks/apple" | jq .
 
       - name: Debug database permissions
         run: |
