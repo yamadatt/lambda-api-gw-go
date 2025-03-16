@@ -81,7 +81,7 @@ jobs:
           sleep 15
           
           # テストデータ初期化
-          docker exec mysql-db mysql -utestuser -ptestpass stock_db -e "CREATE TABLE IF NOT EXISTS stocks (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), amount INT);"
+          docker exec mysql-db mysql -utestuser -ptestpass stock_db -e "CREATE TABLE IF NOT EXISTS stocks (name VARCHAR(255) PRIMARY KEY, amount INT NOT NULL);"
           docker exec mysql-db mysql -utestuser -ptestpass stock_db -e "INSERT INTO stocks (name, amount) VALUES ('apple', 100), ('banana', 200);"
           
           # env.jsonファイルを作成（コンテナ名をホストとして使用）
