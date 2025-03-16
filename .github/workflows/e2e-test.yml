@@ -100,6 +100,17 @@ jobs:
             echo "${API_URL}/v1/stocks"
             curl -s "${API_URL}v1/stocks" | jq .
 
+      - name: Run local API tests
+        run: |
+          # SAM Localを使用してLambdaとAPI Gatewayをローカルで実行
+          sam local start-api --env-vars env.json &
+          
+          # APIが起動するまで待機
+          sleep 10
+          
+          # ローカルAPIにリクエスト
+          curl -s "http://localhost:3000/v1/stocks" | jq .
+
       - name: Cleanup test stack
         if: always()
         run: |
