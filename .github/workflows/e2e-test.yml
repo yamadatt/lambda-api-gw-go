@@ -64,41 +64,45 @@ jobs:
         run: |
           sam build
 
-    #   - name: Deploy test stack
-    #     id: deploy
-    #     run: |
-    #       sam deploy \
-    #         --stack-name my-api-test-${{ github.run_id }} \
-    #         --capabilities CAPABILITY_IAM \
-    #         --parameter-overrides StageName=test DatabaseUrl=mysql://testuser:testpass@mysql:3306/testdb \
-    #         --no-confirm-changeset \
-    #         --no-fail-on-empty-changeset \
-    #         --region ap-northeast-1
+      - name: Setup test environment
+        run: |
+          # env.jsonファイルを作成
+          cat > env.json << EOF
+          {
+            "StockFunction": {
+              "DB_HOST": "host.docker.internal",
+              "DB_PORT": "3306",
+              "MYSQL_USER": "testuser",
+              "MYSQL_PASSWORD": "testpass",
+              "MYSQL_DATABASE": "testdb"
+            }
+          }
+          EOF
+          
+          # MySQLサーバーをセットアップ
+          docker run -d --name mysql-test \
+            -e MYSQL_ROOT_PASSWORD=rootpass \
+            -e MYSQL_DATABASE=testdb \
+            -e MYSQL_USER=testuser \
+            -e MYSQL_PASSWORD=testpass \
+            -p 3306:3306 \
+            mysql:8.0
+          
+          # データベースが起動するまで待機
+          sleep 20
+          
+          # テストデータを初期化（必要に応じて）
+          docker exec mysql-test mysql -utestuser -ptestpass testdb -e "CREATE TABLE IF NOT EXISTS stocks (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), amount INT);"
+          docker exec mysql-test mysql -utestuser -ptestpass testdb -e "INSERT INTO stocks (name, amount) VALUES ('apple', 100), ('banana', 200);"
 
-    #   - name: Initialize Database
-    #     run: |
-    #       # 初期スキーマの投入（例：migrations/init.sql を実行）
-    #       mysql --host=mysql --user=testuser --password=testpass testdb < migrations/init.sql
-
-    #   - name: Run API e2e tests
-    #     run: |
-    #         # まずすべての出力を確認して正しいキー名を特定
-    #         aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs" --output json --region ap-northeast-1
-            
-    #         # 正しい出力キーを使用（例：ApiGatewayEndpoint）
-    #         API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --region ap-northeast-1)
-            
-    #         echo "API URL: ${API_URL}"
-            
-    #         # URLが取得できたか確認
-    #         if [ -z "$API_URL" ]; then
-    #         echo "Error: API URL could not be retrieved!"
-    #         exit 1
-    #         fi
-            
-    #         # e2eテストを実行
-    #         echo "${API_URL}/v1/stocks"
-    #         curl -s "${API_URL}v1/stocks" | jq .
+          # SAM Localを使用してAPI Gatewayをローカルで実行
+          sam local start-api --env-vars env.json --host 0.0.0.0 --debug &
+          
+          # APIが起動するまで待機
+          sleep 15
+          
+          # ローカルAPIにリクエスト
+          curl -v "http://localhost:3000/v1/stocks" | jq .
 
       - name: Run local API tests
         run: |
