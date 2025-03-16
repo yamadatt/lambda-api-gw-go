@@ -82,13 +82,22 @@ jobs:
 
       - name: Run API e2e tests
         run: |
-          # CloudFormation出力からAPIエンドポイントのURLを取得
-          API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --region ap-northeast-1)
-          echo "API URL: ${API_URL}"
-          
-          # e2eテストを実行（例：curlでGETリクエストを送信）
-          curl -s ${API_URL}/resource | jq .
-          # テスト結果のチェックなどを必要に応じて実施
+            # まずすべての出力を確認して正しいキー名を特定
+            aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs" --output json --region ap-northeast-1
+            
+            # 正しい出力キーを使用（例：ApiGatewayEndpoint）
+            API_URL=$(aws cloudformation describe-stacks --stack-name my-api-test-${{ github.run_id }} --query "Stacks[0].Outputs[?OutputKey=='ApiGatewayEndpoint'].OutputValue" --output text --region ap-northeast-1)
+            
+            echo "API URL: ${API_URL}"
+            
+            # URLが取得できたか確認
+            if [ -z "$API_URL" ]; then
+            echo "Error: API URL could not be retrieved!"
+            exit 1
+            fi
+            
+            # e2eテストを実行
+            curl -s "${API_URL}/v1/stocks" | jq .
 
       - name: Cleanup test stack
         if: always()
