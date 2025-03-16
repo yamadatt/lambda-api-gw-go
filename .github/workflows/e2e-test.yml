@@ -147,10 +147,32 @@ jobs:
           # ローカルAPIにリクエスト
           curl -s "http://localhost:3000/v1/stocks" | jq .
 
-      - name: Cleanup test stack
-        if: always()
-        run: |
-          sam delete --stack-name my-api-test-${{ github.run_id }} --no-prompts --region ap-northeast-1
+          # event.jsonを使用してLambdaを直接テスト
+          echo "Testing Lambda function with event.json..."
+          sam local invoke StockFunction \
+            --env-vars env.json \
+            --docker-network samlocal-network \
+            --event event.json > lambda_output.json
+          
+          # 出力の確認
+          cat lambda_output.json | jq .
+          
+          # レスポンスが期待通りか確認
+          if grep -q "\"statusCode\": 200" lambda_output.json; then
+            echo "Lambda execution succeeded with status 200!"
+            
+            # レスポンス本文の確認
+            if grep -q "hoge" lambda_output.json; then
+              echo "Found expected product in response"
+              exit 0
+            else
+              echo "Expected product 'hoge' not found in response"
+              exit 1
+            fi
+          else
+            echo "Lambda execution failed or returned non-200 status"
+            exit 1
+          fi
 
   actions-timeline:
     name: Actions Timeline
