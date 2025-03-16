@@ -97,7 +97,8 @@ jobs:
             fi
             
             # e2eテストを実行
-            curl -s "${API_URL}/v1/stocks" | jq .
+            echo "${API_URL}/v1/stocks"
+            curl -s "${API_URL}v1/stocks" | jq .
 
       - name: Cleanup test stack
         if: always()
